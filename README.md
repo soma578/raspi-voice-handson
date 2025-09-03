@@ -394,3 +394,40 @@ import google.generativeai as genai
 # response = model.generate_content(text)
 # print(response.text) # -> このテキストをpyopenjtalkやgTTSで喋らせる
 ```
+
+---
+
+## 8. (上級者向け) 複数台への自動デプロイ (Ansible)
+
+このプロジェクトのルートディレクトリの1つ上の階層にある `ansible` ディレクトリには、複数台のRaspberry Piにこのハンズオン環境を自動でセットアップするためのAnsible Playbookが含まれています。
+
+### 事前準備
+
+1.  **Ansibleのインストール:**
+    操作用PC（このPC）にAnsibleがインストールされている必要があります。
+    ```bash
+    pip install ansible
+    ```
+
+2.  **SSHキー認証の設定:**
+    操作用PCから、セットアップ対象の全てのRaspberry Piに対して、パスワード入力なしでSSH接続ができるように設定しておく必要があります。（公開鍵認証）
+
+3.  **インベントリファイルの編集:**
+    `../ansible/hosts.ini` ファイルを開き、セットアップしたいRaspberry PiのIPアドレスを記述します。
+    ```ini
+    [raspberry_pis]
+    192.168.1.11
+    192.168.1.12
+    192.168.1.13
+    ```
+
+### 実行
+
+準備が完了したら、このプロジェクトのルートディレクトリ（`raspi-voice-handson`）から、以下のコマンドを実行します。
+
+```bash
+# ansibleディレクトリのhosts.iniをインベントリとして、playbook.ymlを実行
+ansible-playbook -i ../ansible/hosts.ini ../ansible/playbook.yml
+```
+
+これにより、`hosts.ini` に記述された全てのラズパイに対して、環境構築からプロジェクトファイルのコピー、Voskモデルのダウンロードまでが全自動で実行されます。
