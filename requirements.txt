@@ -1,11 +1,16 @@
-# ハンズオンに必要なライブラリ
+# --- 基本ライブラリ ---
 vosk
-pyopenjtalk
 sounddevice
 requests
 matplotlib
 japanize-matplotlib
+pyopenjtalk
 
-# RPi.GPIO はRaspberry Pi環境では通常プリインストールされています。
-# もしインストールされていない場合は、以下のコマンドでインストールしてください。
-# sudo apt-get install python3-rpi.gpio
+# --- 代替・追加ライブラリ (必要に応じてインストール) ---
+# pyaudio # sounddeviceの代替
+# pygame  # gTTSの再生などで使用
+
+# --- 発展課題で利用するライブラリ ---
+# gTTS
+# openai
+# google-generativeai
