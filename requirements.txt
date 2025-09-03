@@ -1,0 +1,11 @@
+# ハンズオンに必要なライブラリ
+vosk
+pyopenjtalk
+sounddevice
+requests
+matplotlib
+japanize-matplotlib
+
+# RPi.GPIO はRaspberry Pi環境では通常プリインストールされています。
+# もしインストールされていない場合は、以下のコマンドでインストールしてください。
+# sudo apt-get install python3-rpi.gpio
