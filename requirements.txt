@@ -7,6 +7,13 @@ scipy
 # 音声合成＆音声認識ライブラリ
 pyopenjtalk
 vosk
+gTTS
+
+# その他の再生・処理ライブラリ
+PyAudio
+pygame
+pyworld
+soundfile
 
 # (任意) Matplotlibの日本語文字化け対策
 japanize-matplotlib

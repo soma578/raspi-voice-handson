@@ -1,4 +1,4 @@
-# PCで学ぶ！Python音声処理入門【決定版】
+# PCで学ぶ！Python音声処理入門【完全版】
 
 ## 1. はじめに
 
@@ -30,353 +30,315 @@ pip install -r requirements.txt
 3.  **環境変数「PATH」の設定**: Windowsの検索バーで「**環境変数を編集**」と検索し、「システム環境変数の編集」を開きます。「環境変数」→「システム環境変数」の`Path`を選択→「編集」→「新規」と進み、`ffmpeg`の`bin`フォルダのパス（例: `C:\ffmpeg\bin`）を追加します。
 4.  **確認**: **新しい**コマンドプロンプトを開き`ffmpeg -version`と入力し、バージョン情報が表示されれば成功です。
 
-### 手順3: 音声認識モデル `Vosk` の準備
+### 手順3: 音声認識・合成モデルの準備
 
-`Vosk`で音声認識を行うには、言語ごとの「モデル」ファイルが必要です。
-
+#### Vosk言語モデル (音声認識用)
 1.  **ダウンロード**: [Vosk Models Page](https://alphacephei.com/vosk/models)にアクセスし、日本語モデル（`vosk-model-ja-0.22`など）をダウンロードします。
-2.  **配置**: ダウンロードしたzipファイルを解凍し、出てきたフォルダを、この先のPythonスクリプトを保存する予定のプロジェクトフォルダ内に配置してください。
+2.  **配置**: ダウンロードしたzipファイルを解凍し、出てきたフォルダを、このプロジェクトフォルダ（各種`practice_..._.py`を置く場所）内に配置してください。
+
+#### Open JTalkボイスフォント (音声合成用)
+1.  **`voices`ディレクトリの作成**: プロジェクトフォルダに`voices`という名前の新しいディレクトリを作成してください。
+2.  **ダウンロードと配置**: [MMDAgent & Project-NAIPのSourceForgeページ](https://osdn.net/projects/mmdagent/releases/p12473)から`MMDAgent_Example-1.8.zip`をダウンロードし、解凍します。中にある`Voice`フォルダ内の`mei`や`takumi`といった各フォルダの中から、`.htsvoice`で終わるファイルをすべて探し、先ほど作成した`voices`ディレクトリの中にコピーします。
 
 ---
 
 ## 3. 音声データの基本（理論編）
 
-（この章は、音声処理の背景にある普遍的な理論を扱います。一度目を通しておくと、実践パートの理解が深まります。）
-
 音は空気の振動（アナログ信号）ですが、コンピュータは数値（デジタル信号）しか扱えません。この変換プロセスが「**A/D変換**」であり、その核心が**サンプリング（標本化）**と**量子化**です。
 
 - **サンプリング周波数 (Hz)**: 1秒間に音を何回サンプリング（測定）するか。数値が大きいほど高音質になります。(例: CDは44100 Hz)
 - **ビット深度 (bit)**: 1回のサンプリングで得た音の大きさ（振幅）を、どれくらいの細かさで数値化するか。数値が大きいほど表現豊かな音になります。(例: 16 bitなら$2^{16}$=65,536段階)
-- **チャンネル数**: モノラル(1)かステレオ(2)か。
 
 このプロセスを経て生成された、生の音声データが **PCM (Pulse-Code Modulation)** データです。私たちがPythonで扱うのは、このPCMデータを`numpy`配列という形式にしたものです。
 
 ---
 
-## 4. 実践1: 録音と再生
+## 4. 実践1: 音声の再生
 
-最初の実践として、PCのマイクから音を録音し、スピーカーで再生してみましょう。
+まず、音声ファイルを再生するいくつかの方法を見てみましょう。ここでは`scipy`でWAVファイルを読み込み、それを各ライブラリで再生します。
 
-### この実践で使うモジュール
-
-#### `sounddevice` 詳解
-- **役割**: PythonとPCの音声入出力デバイス（マイク、スピーカー）を繋ぐためのライブラリです。内部的には**PortAudio**という、様々なOSで音声処理を行うための標準的なライブラリを呼び出しています。これにより、私たちはOSやハードウェアの違いを気にせず、同じコードで音声を扱うことができます。
-- **主要な関数**:
-    - `rec(フレーム数, samplerate, channels)`: 録音を開始します。この関数は「ノンブロッキング」で、録音が完了するのを待たずに即座に次の処理へ進みます。戻り値として、録音データを格納するためのNumPy配列を返します。
-    - `play(データ, samplerate)`: NumPy配列のデータを再生します。これもノンブロッキングです。
-    - `wait()`: `rec`や`play`といった処理が完了するのを待つための「ブロッキング」関数です。これを呼ばないと、録音や再生が終わる前にプログラムが終了してしまいます。
-    - `query_devices()`: PCに接続されている音声デバイスの一覧と情報を表示します。どのマイクやスピーカーが何番のデバイスとして認識されているかを確認するのに便利です。
-
-#### `numpy` 詳解
-- **役割**: 数値計算を効率的に行うためのライブラリで、PythonにおけるデータサイエンスやAI分野の根幹をなす存在です。音声データは「数値の配列」そのものであるため、`numpy`の配列（`ndarray`）として扱うのが最も効率的です。
-- **なぜNumPyか？**: Python標準のリストに比べて、`numpy`の配列はメモリ効率が良く、配列全体に対する計算（**ベクトル化演算**）が非常に高速です。例えば、音声データ全体の音量を2倍にする場合、リストならループ処理が必要ですが、`numpy`なら配列に`* 2`と書くだけで、最適化されたC言語レベルの速度で実行されます。
-- **重要な属性**:
-    - `.shape`: 配列の形状。(サンプル数, チャンネル数)の形で格納されています。
-    - `.dtype`: 配列のデータ型。`float32`（-1.0〜1.0の浮動小数点数）や`int16`（-32768〜32767の整数）などがよく使われます。
-
-### サンプルコード
+### 4.1 `sounddevice`による再生 (基本)
+`sounddevice`は、`numpy`配列を直接扱え、遅延も少なく、録音と再生を同じライブラリで一貫して扱えるため、このガイドの基本とします。
 
 ```python
-# practice_1_record_playback.py
+# practice_1_sounddevice_playback.py
+from scipy.io.wavfile import read
 import sounddevice as sd
-import numpy as np
 
-# デバイス一覧を表示して確認
-# print(sd.query_devices())
-
-# パラメータ設定
-FS = 44100  # サンプリング周波数
-DURATION = 5  # 録音時間 (秒)
-
-print(f"{DURATION}秒間、録音します...")
-
-# 録音
-myrecording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
-sd.wait()  # 録音終了まで待機
-
-print("録音終了。")
-print(f"データ型: {myrecording.dtype}, 形状: {myrecording.shape}")
-
-# 再生
-print("再生します...")
-sd.play(myrecording, FS)
-sd.wait()  # 再生終了まで待機
-
-print("再生完了。")
-```
-
----
-
-## 5. 実践2: 音声の可視化
-
-録音した音声データがどんな形をしているのか、グラフにして見てみましょう。
-
-### この実践で使うモジュール
-
-#### `matplotlib` 詳解
-- **役割**: `numpy`配列などのデータを、グラフや画像として可視化するための標準的なライブラリです。
-- **基本要素**: `matplotlib`のグラフは、大きな画用紙である`Figure`と、その上に描かれる個々のグラフ領域である`Axes`（軸）から構成されます。`plt.plot()`のようなシンプルな関数は、内部で自動的にこれらを作成して描画しています。
-- **音声波形プロット**: 横軸を「時間」、縦軸を`numpy`配列の各値（音の振幅）としてプロットすることで、音声の波形を描画できます。これにより、どこで音が大きくなり、どこが無音なのかを視覚的に把握できます。
-
-### サンプルコード
-
-```python
-# practice_2_visualize.py
-import sounddevice as sd
-import numpy as np
-import matplotlib.pyplot as plt
-
-FS = 44100
-DURATION = 5
-
-print("5秒間録音します...")
-myrecording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
+FS, data = read("my_voice.wav") # practice_4で作成
+sd.play(data, FS)
 sd.wait()
-print("録音終了。")
+```
 
-# 時間軸を作成
-time = np.arange(0, DURATION, 1/FS)
+### 4.2 (別解) `PyAudio`による再生
+`PyAudio`は古くから使われているライブラリで、より低レベルなストリーミング処理が可能です。データを小さな「チャンク」に区切って、順次再生していく方式です。
 
-# グラフを描画
-plt.figure(figsize=(12, 4))
-plt.plot(time, myrecording)
-plt.xlabel("Time [s]")
-plt.ylabel("Amplitude")
-plt.title("Waveform")
-plt.grid()
-plt.show()
+```python
+# practice_1b_pyaudio_playback.py
+import wave, pyaudio, sys
+
+wf=wave.open("my_voice.wav", "r")
+p = pyaudio.PyAudio()
+stream = p.open(format=p.get_format_from_width(wf.getsampwidth()), channels=wf.getnchannels(), rate=wf.getframerate(), output=True)
+chunk = 1024
+data = wf.readframes(chunk)
+while data != b'':
+    stream.write(data)
+    data = wf.readframes(chunk)
+stream.close()
+p.terminate()
+```
+
+### 4.3 (別解) `PyGame`による再生
+`PyGame`はゲーム制作用のライブラリですが、その中の`mixer`モジュールは音声再生機能が強力で、MP3やMIDIなど、WAV以外のフォーマットも簡単に扱えるのが利点です。
+
+```python
+# practice_1c_pygame_playback.py
+import pygame.mixer as m
+
+m.init()
+m.music.load("converted_audio.mp3") # practice_7で作成
+m.music.play()
+while m.music.get_busy():
+    continue
 ```
 
 ---
 
-## 6. 実践3: 音声データの加工
+## 5. 実践2: 録音
 
-`numpy`の配列操作を駆使して、音声に様々なエフェクトをかけてみましょう。
-
-### `numpy`配列操作の深掘り
-
-- **音量変更（要素ごとの乗算）**: 配列全体に数値を掛けるだけで、全サンプルの振幅が変わり、音量が変化します。 `audio * 2` で音量2倍、 `audio * 0.5` で音量半分です。
-- **逆再生（スライス）**: `[::-1]`というスライス表記は、配列の要素を逆順にします。これを音声データに適用すると、逆再生になります。
-- **音声の結合（`concatenate`）**: `np.concatenate()` を使うと、複数の音声配列を連結できます。例えば、ある音声の後に1秒間の無音を挟んで別の音声を繋ぐ、といった編集が可能です。
-- **無音の生成（`zeros`）**: `np.zeros(サンプル数)` で、値がすべて0の配列（＝無音データ）を簡単に作成できます。
-
-### サンプルコード
+`sounddevice`を使ってPCのマイクから音を録音し、`scipy`でWAVファイルに保存します。
 
 ```python
-# practice_3_effects.py
+# practice_2_record.py (旧practice_4_wav.py)
 import sounddevice as sd
-import numpy as np
-
-FS = 44100
-DURATION = 3
-
-print(f"{DURATION}秒間録音します...")
-myrecording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
-sd.wait()
-print("録音終了。")
-
-# 1. 音量UP
-print("音量を2倍にして再生")
-sd.play(myrecording * 2, FS); sd.wait()
-
-# 2. 逆再生
-print("逆再生")
-sd.play(myrecording[::-1], FS); sd.wait()
-
-# 3. 結合
-print("1秒の無音を挟んで2回再生")
-one_sec_silence = np.zeros((FS * 1, 1), dtype=myrecording.dtype)
-combined_audio = np.concatenate([myrecording, one_sec_silence, myrecording])
-sd.play(combined_audio, FS); sd.wait()
-```
-
----
-
-## 7. 実践4: ファイルへの保存と読込
-
-録音した音声をWAVファイルとして保存し、またそれを読み込んで再生する方法を学びます。
-
-### この実践で使うモジュール
-
-#### `scipy.io.wavfile` 詳解
-- **役割**: `scipy`は科学技術計算全般を扱う巨大なライブラリですが、その中にある`io.wavfile`は、WAVファイルの読み書きに特化したモジュールです。
-- **WAVフォーマット**: 非圧縮のPCMデータを格納する標準的な音声ファイル形式です。ファイルの先頭に「サンプリング周波数、ビット深度、チャンネル数」などの情報を持つ**ヘッダ**があり、その後に実際の音声データが続きます。
-- **`write(ファイル名, samplerate, データ)`**: サンプリング周波数とNumPy配列データを指定して、WAVファイルを作成します。この際、`float32`のデータは自動的にWAV形式で一般的な`int16`などに変換して書き込んでくれます。
-- **`read(ファイル名)`**: WAVファイルを読み込み、ヘッダから取得したサンプリング周波数と、音声データ本体のNumPy配列を返します。
-
-### サンプルコード
-
-```python
-# practice_4_wav.py
-import sounddevice as sd
-import numpy as np
-from scipy.io.wavfile import write, read
+from scipy.io.wavfile import write
 
 FS = 44100
 DURATION = 5
 FILENAME = "my_voice.wav"
 
-# 録音してWAVファイルに保存
-print(f"録音開始... ({FILENAME}に保存)")
+print("録音を開始します...")
 recording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
 sd.wait()
 write(FILENAME, FS, recording)
-print("保存完了。")
-
-# WAVファイルを読み込んで再生
-print(f"{FILENAME}を読み込んで再生します...")
-samplerate, data = read(FILENAME)
-print(f"読み込んだファイルの周波数: {samplerate} Hz")
-sd.play(data, samplerate)
-sd.wait()
-print("再生完了。")
+print(f"{FILENAME} に録音を保存しました。")
 ```
 
 ---
 
-## 8. 実践5: 好きな声で音声合成
+## 6. 実践3: 音声の可視化
 
-これまではライブラリ内蔵のデフォルトの声で音声を合成してきましたが、ここでは好きなボイスフォント（声質データ）を選んで喋らせる、より応用的なプログラムを作成します。
+録音した音声がどんな形をしているのか、グラフにして見てみましょう。
 
-### 手順1: ボイスフォントの準備
+### 6.1 波形の描画
+横軸を時間、縦軸を振幅とする最も基本的なグラフです。
 
-`Open JTalk`で利用できる`.htsvoice`という形式のボイスフォントファイルを入手し、一箇所にまとめます。
+```python
+# practice_3a_waveform.py (旧practice_2_visualize.py)
+from scipy.io.wavfile import read
+import numpy as np
+import matplotlib.pyplot as plt
 
-1.  **`voices`ディレクトリの作成**:
-    まず、このプロジェクトフォルダ（`practice_..._.py`ファイルがある場所）に、`voices`という名前の新しいディレクトリを作成してください。
+FS, data = read("my_voice.wav")
+time = np.arange(len(data)) / FS
 
-2.  **ボイスフォントのダウンロードと配置**:
-    - [MMDAgent & Project-NAIPのSourceForgeページ](https://osdn.net/projects/mmdagent/releases/p12473)にアクセスします。
-    - `MMDAgent_Example-1.8.zip` というファイルをダウンロードしてください。
-    - ダウンロードしたzipファイルを解凍します。
-    - 解凍したフォルダの中にある`Voice`ディレクトリを開くと、`mei`や`takumi`など、キャラクター名のディレクトリが複数あります。
-    - それらのディレクトリの中にある **`.htsvoice`で終わるファイルをすべて探し、先ほど作成した`voices`ディレクトリの中にコピー**してください。
+plt.plot(time, data)
+plt.xlabel("Time [s]")
+plt.ylabel("Amplitude")
+plt.show()
+```
 
-これで、`voices`ディレクトリの中に`mei_normal.htsvoice`や`takumi_normal.htsvoice`などのファイルが集まった状態になります。
+### 6.2 スペクトログラムの描画
+波形をさらに分析し、横軸を時間、縦軸を周波数、色の濃淡をその周波数成分の強さで表現したものがスペクトログラムです。声紋分析などにも使われる、より情報量の多いグラフです。
 
-### 手順2: ボイス選択式スクリプトの解説
+```python
+# practice_3b_spectrogram.py (旧practice_2b_spectrogram.py)
+from scipy.io.wavfile import read
+from scipy.signal import spectrogram
+import matplotlib.pyplot as plt
 
-先ほど作成した`practice_5_tts.py`は、`voices`ディレクトリの中を自動で探し、利用可能なボイスの一覧をユーザーに提示して、選ばれた声で喋らせるプログラムです。
+FS, data = read("my_voice.wav")
 
-`open_jtalk`コマンドの`-m`オプションでボイスファイルを指定したように、`pyopenjtalk.tts()`関数の`voice`引数に`.htsvoice`ファイルのパスを渡すことで、声質を変更できます。
+f, t, Sxx = spectrogram(data, fs=FS)
 
-このスクリプトでは、以下の処理を行っています。
-
-1.  **ボイスの検索**: `glob`というライブラリを使い、`voices`ディレクトリ内の`.htsvoice`ファイルをすべて探し出します。
-2.  **選択肢の表示**: 見つけたボイスファイルの一覧と、「0番: デフォルトボイス」を画面に表示します。
-3.  **ユーザー入力**: `input()`関数でユーザーに番号を入力させ、どの声を使うか決定します。
-4.  **音声合成**: ユーザーが0番以外を選んだ場合、対応するボイスファイルのパスを`pyopenjtalk.tts()`の`voice`引数に渡して、音声合成を実行します。
+plt.pcolormesh(t, f, 10 * np.log10(Sxx + 1e-9), shading='gouraud')
+plt.ylabel('Frequency [Hz]')
+plt.xlabel('Time [sec]')
+plt.ylim(0, 8000)
+plt.show()
+```
 
 ---
 
-## 9. 実践6: 音声認識
+## 7. 実践4: 音声データの加工
 
-マイクで話した内容をテキストに変換します。
-
-### この実践で使うモジュール
-
-#### `vosk` 詳解
-- **役割**: オフラインで動作する音声認識エンジン`Vosk`をPythonから利用するためのライブラリです。
-- **主要クラス**:
-    - `Model(モデルパス)`: 環境構築で配置した言語モデル（例: `vosk-model-ja-0.22`）を読み込み、認識の準備をします。
-    - `KaldiRecognizer(モデル, samplerate)`: 認識処理の本体。どのモデルと、どのサンプリング周波数で音声を解析するかを指定して作成します。
-- **データ形式の重要性**: `Vosk`は、-1.0〜1.0の`float32`形式ではなく、-32768〜32767の**`int16`形式のPCMデータをbytes列にしたもの**を要求します。そのため、`sounddevice`で録音した`float32`の配列に対し、`* 32767`で振幅をスケールアップし、`.astype(np.int16)`で整数に変換、`.tobytes()`でbytes列に変換する、という前処理が不可欠です。
-- **認識結果(JSON)**: `recognizer.Result()`は、認識結果をJSON形式の文字列で返します。`json.loads()`でパースすると、`'text'`キーに認識された全文が、`'result'`キーには単語ごとの認識結果やタイムスタンプ、信頼度(`'conf'`)などが含まれています。
-
-### サンプルコード
+`numpy`の配列操作を駆使して、音声に様々なエフェクトをかけます。
 
 ```python
-# practice_6_stt.py
+# practice_4_effects.py (旧practice_3_effects.py)
+from scipy.io.wavfile import read, write
 import sounddevice as sd
 import numpy as np
+
+FS, data = read("my_voice.wav")
+
+# 1. 音量UP
+sd.play(data * 2, FS); sd.wait()
+
+# 2. 逆再生
+sd.play(data[::-1], FS); sd.wait()
+
+# 3. 結合 (1秒の無音を挟む)
+one_sec_silence = np.zeros(FS * 1, dtype=data.dtype)
+combined = np.concatenate([data, one_sec_silence, data])
+write("combined.wav", FS, combined)
+```
+
+---
+
+## 8. 実践5: オフライン音声合成 (Open JTalk)
+
+PCにインストールしたモデルを使って、オフラインで日本語テキストから音声を生成します。`voices`ディレクトリに用意したボイスフォントを選択して使います。
+
+```python
+# practice_5_tts.py (高機能版)
+import pyopenjtalk, sounddevice as sd, os, glob
+
+VOICES_DIR = "./voices"
+text = "こんにちは。好きな声を選んで、私に喋らせてみてください。"
+
+voice_files = glob.glob(os.path.join(VOICES_DIR, "*.htsvoice"))
+available_voices = ["0: デフォルト"] + [f"{i+1}: {os.path.splitext(os.path.basename(v))[0]}" for i, v in enumerate(voice_files)]
+
+print("利用可能なボイス:")
+for v in available_voices: print(f"  {v}")
+
+selected_voice_path = None
+while True:
+    try:
+        choice = int(input(f"番号を入力 (0-{len(available_voices)-1}): "))
+        if 0 <= choice < len(available_voices):
+            if choice > 0: selected_voice_path = voice_files[choice - 1]
+            break
+    except ValueError: pass
+
+audio_data, FS = pyopenjtalk.tts(text, voice=selected_voice_path)
+sd.play(audio_data, FS)
+sd.wait()
+```
+
+---
+
+## 9. 実践6: オンライン音声合成 (gTTS)
+
+Googleのオンラインサービス(gTTS)を使い、より自然な音声を生成します。インターネット接続が必要です。
+
+```python
+# practice_6_gtts.py (旧practice_8_gtts.py)
+from gtts import gTTS
+import pygame.mixer as m
+
+mytext = "こんにちは。こちらは、グーグルのオンライン音声合成サービスです。"
+FILENAME = "gtts_hello.mp3"
+
+tts = gTTS(text=mytext, lang='ja')
+tts.save(FILENAME)
+
+m.init()
+m.music.load(FILENAME)
+m.music.play()
+while m.music.get_busy(): continue
+```
+
+---
+
+## 10. 実践7: 音声認識 (Vosk)
+
+マイクで話した言葉をテキストに変換します。Voskの言語モデルが必要です。
+
+```python
+# practice_7_stt.py (旧practice_6_stt.py)
+import sounddevice as sd, numpy as np, json, os
 from vosk import Model, KaldiRecognizer
-import json
-import os
 
 MODEL_DIR = "vosk-model-ja-0.22"
-FS = 16000  # 日本語モデルは16000Hzを推奨
+FS = 16000
 DURATION = 5
 
-if not os.path.exists(MODEL_DIR):
-    print("Voskモデルが見つかりません。")
-    exit()
+if not os.path.exists(MODEL_DIR): exit("Voskモデルが見つかりません。")
 
 print(f"{DURATION}秒間、話してください...")
 myrecording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1, dtype='float32')
 sd.wait()
-print("認識中...")
 
 model = Model(MODEL_DIR)
 recognizer = KaldiRecognizer(model, FS)
-
-# データ形式を変換して認識
-data = (myrecording * 32767).astype(np.int16).tobytes()
-recognizer.AcceptWaveform(data)
-
+recognizer.AcceptWaveform((myrecording * 32767).astype(np.int16).tobytes())
 result = json.loads(recognizer.FinalResult())
-print("--- 認識結果 ---")
-print(result['text'])
+print(f"認識結果: {result['text']}")
 ```
 
 ---
 
-## 10. 実践7: フォーマット変換
+## 11. 実践8: フォーマット変換 (ffmpeg)
 
-作成したWAVファイルを、より一般的なMP3ファイルに変換してみましょう。
-
-### 外部ツールとの連携
-
-#### `subprocess`モジュール詳解
-- **役割**: Pythonプログラムの中から、OSのコマンド（外部プログラム）を実行するための標準ライブラリです。`ffmpeg.exe`のような、独立したプログラムを呼び出すのに使います。
-- **`run(コマンドリスト)`**: 指定されたコマンドを実行します。コマンドと引数は、`["ffmpeg", "-i", "input.wav", "output.mp3"]`のようにリストで渡すのが安全で確実です。
-
-#### `ffmpeg`コマンド詳解
-- **役割**: 音声・動画に関するあらゆる変換処理を行える万能ツールです。
-- **主要オプション**:
-    - `-i <入力ファイル>`: 変換元のファイルを指定します。
-    - `<出力ファイル>`: 変換先のファイル名を指定します。拡張子（`.mp3`など）を見るだけで、`ffmpeg`が自動的に適切なフォーマットに変換してくれます。
-    - `-b:a <ビットレート>`: 音声のビットレートを指定します。MP3の場合、`192k`（192kbps）あたりが標準的な音質です。
-
-### サンプルコード
+`ffmpeg`をPythonから呼び出し、WAVファイルをMP3に変換します。
 
 ```python
-# practice_7_converter.py
+# practice_8_converter.py (旧practice_7_converter.py)
 import subprocess
-from scipy.io.wavfile import write
-import numpy as np
 
-# まずはダミーのWAVファイルを作成
-FS = 44100
-dummy_audio = (np.sin(np.arange(FS * 3) * 440 * 2 * np.pi / FS) * 0.5).astype(np.float32)
-INPUT_WAV = "temp_for_ffmpeg.wav"
+INPUT_WAV = "my_voice.wav"
 OUTPUT_MP3 = "converted_audio.mp3"
-write(INPUT_WAV, FS, dummy_audio)
 
-print(f"{INPUT_WAV}を{OUTPUT_MP3}に変換します...")
+command = ["ffmpeg", "-i", INPUT_WAV, "-y", "-b:a", "192k", OUTPUT_MP3]
 
-# ffmpegを呼び出すコマンドをリストで作成
-command = [
-    "ffmpeg",
-    "-i", INPUT_WAV,      # 入力ファイル
-    "-y",                 # 出力ファイルが既に存在する場合、確認なしで上書き
-    "-b:a", "192k",       # 音声ビットレートを192kbpsに設定
-    OUTPUT_MP3            # 出力ファイル
-]
-
-# subprocessでffmpegを実行
 try:
-    subprocess.run(command, check=True, capture_output=True, text=True)
+    subprocess.run(command, check=True)
     print("変換成功！")
 except FileNotFoundError:
-    print("エラー: ffmpegが見つかりません。PATHが正しく設定されているか確認してください。")
-except subprocess.CalledProcessError as e:
-    print("ffmpegの実行中にエラーが発生しました。")
-    print(e.stderr) # ffmpegからのエラー出力を表示
-
+    print("エラー: ffmpegが見つかりません。")
 ```
 
 ---
 
-## 11. まとめ
+## 12. 最終実践: ボイスチェンジャー (PyWorld)
 
-このガイドでは、音声処理の基本的な理論から、Pythonを使った録音・再生・加工・ファイル操作、さらには音声合成・認識、フォーマット変換まで、一通りの技術を実践的に学びました。ここで得た知識を組み合わせることで、文字起こしツール、ボイスアシスタント、オーディオエフェクターなど、様々なアプリケーションを作成する基礎ができたはずです。ぜひ、自分だけの音声アプリケーション開発に挑戦してみてください。
+音声の正体である「基本周波数(F0)」を直接操作し、声のピッチ（高さ）を自在に変えてみましょう。
+
+```python
+# practice_9_pyworld_voicemod.py
+import soundfile as sf, pyworld as pw, numpy as np, sounddevice as sd
+
+# 声を高くする倍率
+PITCH_RATE = 1.5
+
+x, fs = sf.read("my_voice.wav")
+x = x.astype(np.float64)
+
+# PyWorldで音声の構成要素に分解
+f0, t = pw.dio(x, fs)
+sp = pw.cheaptrick(x, f0, t, fs)
+ap = pw.d4c(x, f0, t, fs)
+
+# 基本周波数(f0)を加工
+modified_f0 = f0 * PITCH_RATE
+
+# 構成要素を再合成
+synthesized = pw.synthesize(modified_f0, sp, ap, fs)
+
+# 元の声と再生して比較
+print("元の音声を再生します...")
+sd.play(x, fs); sd.wait()
+print(f"ピッチを{PITCH_RATE}倍にした音声を再生します...")
+sd.play(synthesized, fs); sd.wait()
+
+sf.write("my_voice_mod.wav", synthesized, fs)
+```
+
+---
+
+## 13. まとめ
+
+このガイドでは、音声処理の基本的な理論から、Pythonを使った録音・再生・加工・ファイル操作、さらには音声合成・認識、フォーマット変換、ボイスチェンジまで、一通りの技術を実践的に学びました。ぜひ、自分だけの音声アプリケーション開発に挑戦してみてください。
