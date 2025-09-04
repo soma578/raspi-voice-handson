@@ -250,3 +250,139 @@ print("\nすべての再生が完了しました。")
 
 - **より高度なエフェクト**:
   ディレイ、リバーブ、コーラスといったエフェクトも、すべてはNumPy配列の巧妙な操作によって実現されています。ぜひ挑戦してみてください。
+
+---
+
+## 9. 実践4: テキストからの音声合成 (pyopenjtalk)
+
+これまではマイクから入力した音声を扱ってきましたが、今度はプログラム自身に喋らせてみましょう。ここでは、テキストを音声に変換する**音声合成（Text-To-Speech, TTS）**を扱います。
+
+### `pyopenjtalk` とは？
+`pyopenjtalk`は、`Open JTalk`というオープンソースの日本語音声合成エンジンをPythonから簡単に使えるようにしたライブラリです。最大の特徴は、**インターネット接続が不要（オフライン）**で動作することと、無料で利用できる点です。
+
+### インストール
+`pyopenjtalk`は他のライブラリと少し依存関係が複雑なため、以下のコマンドで関連ライブラリごとインストールするのが確実です。
+
+```bash
+pip install pyopenjtalk sounddevice
+```
+*(sounddeviceは既にインストール済みですが、念のため含めています)*
+
+### 使い方
+`pyopenjtalk`は、与えられた日本語テキストをPCMデータ（NumPy配列）に変換してくれます。つまり、`sounddevice`で録音したデータと全く同じ形式のデータが、今度はテキストから生成されるわけです。
+
+**サンプルコード:**
+```python
+# practice_4_tts.py
+import pyopenjtalk
+import sounddevice as sd
+
+# 合成したい日本語テキスト
+text = "こんにちは。今日はPythonで音声合成を試しています。"
+
+print(f"音声合成中: 「{text}」")
+
+# テキストから音声波形 (NumPy配列) を生成
+# 戻り値は (音声波形データ, サンプリング周波数)
+audio_data, sampling_rate = pyopenjtalk.tts(text)
+
+print(f"生成された音声のサンプリング周波数: {sampling_rate} Hz")
+
+# sounddeviceで再生
+print("再生します...")
+sd.play(audio_data, sampling_rate)
+sd.wait()
+print("再生完了。")
+```
+
+---
+
+## 10. 実践5: 音声認識 (Vosk)
+
+最後に、このガイドの締めくくりとして、マイクで話した言葉をコンピュータに理解させる**音声認識（Speech-To-Text, STT）**に挑戦します。
+
+### `Vosk` とは？
+`Vosk`は、`pyopenjtalk`と同じくオフラインで動作する、高精度なオープンソースの音声認識エンジンです。日本語を含む多くの言語に対応しており、カスタマイズも可能です。
+
+### インストール
+`vosk`ライブラリをインストールします。
+
+```bash
+pip install vosk
+```
+
+### 【重要】音声認識モデルの準備
+`Vosk`は、それ単体では音声を認識できません。「どの言語を認識するのか」を定義した**モデルファイル**が別途必要になります。
+
+1.  **モデルのダウンロード**:
+    以下の公式サイトから、日本語モデルをダウンロードします。
+    - **Vosk Models Page**: [https://alphacephei.com/vosk/models](https://alphacephei.com/vosk/models)
+    - `vosk-model-ja-0.22` のような、日本語用のモデル（zipファイル）を見つけてダウンロードしてください。（ファイルサイズが1GB以上あるので注意してください）
+
+2.  **モデルの配置**:
+    ダウンロードしたzipファイルを解凍し、出てきたフォルダ（例: `vosk-model-ja-0.22`）を、これから作成するPythonスクリプトと同じ階層に置いてください。
+
+### 使い方
+音声認識は、以下のステップで行います。
+1.  マイクから音声を録音する。
+2.  録音したデータをVoskが要求する形式に変換する。
+3.  変換したデータをVoskに渡して、認識結果（テキスト）を受け取る。
+
+**サンプルコード:**
+```python
+# practice_5_stt.py
+import sounddevice as sd
+import numpy as np
+from vosk import Model, KaldiRecognizer
+import json
+import os
+
+# --- パラメータ設定 ---
+MODEL_DIR = "vosk-model-ja-0.22"  # ★配置したモデルのディレクトリ名
+FS = 16000  # サンプリング周波数 (Voskの日本語モデルは16000Hzを推奨)
+DURATION = 5  # 録音時間 (秒)
+CHANNELS = 1 # チャンネル数
+
+# --- モデルの存在チェック ---
+if not os.path.exists(MODEL_DIR):
+    print(f"エラー: Voskモデルのディレクトリ '{MODEL_DIR}' が見つかりません。")
+    print("公式サイトからモデルをダウンロードし、このスクリプトと同じ階層に配置してください。")
+    exit()
+
+# --- 録音 ---
+print(f"{DURATION}秒間、何か話してください...")
+myrecording = sd.rec(int(DURATION * FS), samplerate=FS, channels=CHANNELS, dtype='float32')
+sd.wait()
+print("録音終了。")
+
+# --- Voskの準備 ---
+model = Model(MODEL_DIR)
+recognizer = KaldiRecognizer(model, FS)
+
+# --- データ形式の変換 & 認識 ---
+# sounddeviceで録音したfloat32形式のNumPy配列を、
+# Voskが要求する16bit整数のbytes形式に変換する
+data = (myrecording * 32767).astype(np.int16).tobytes()
+
+if recognizer.AcceptWaveform(data):
+    # 最後の認識結果を取得
+    result = json.loads(recognizer.Result())
+    recognized_text = result.get('text', '')
+    print(f"\n--- 認識結果 ---")
+    if recognized_text:
+        print(recognized_text)
+    else:
+        print("（何も認識できませんでした）")
+else:
+    # 部分的な認識結果も表示する場合
+    partial_result = json.loads(recognizer.PartialResult())
+    print(f"\n--- 部分的な認識結果 ---")
+    print(partial_result.get('partial', ''))
+
+```
+
+#### コードのポイント
+- **サンプリング周波数**: 音声認識では、一般的に16000Hzが使われます。Voskのモデルも16000Hzで学習されているため、録音時から`FS = 16000`に設定しています。
+- **データ形式の変換**: `sounddevice`は-1.0〜1.0の`float32`形式でデータを返しますが、Voskは-32768〜32767の`int16`形式のデータを期待します。そのため、`myrecording * 32767`でスケールを合わせ、`.astype(np.int16)`で型を変換し、`.tobytes()`で最終的にbytesオブジェクトに変換しています。この変換処理が非常に重要です。
+
+これで、音声の入力・加工・出力、そして音声合成・音声認識という一通りの音声処理をPC上で体験することができました。
