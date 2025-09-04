@@ -1,499 +1,252 @@
-# Raspberry Piで学ぶ！音声認識・IoTハンズオン (オールインワン版)
+# PCで学ぶ！Python音声処理入門
 
-このリポジトリは、Raspberry Piを使って音声認識、IoTデバイス制御、Webサービス連携を学ぶハンズオンの資料です。このファイルには、すべての説明とサンプルコードが含まれています。
+## 1. はじめに
 
----
+このドキュメントは、特別なハードウェアを使わず、お手元のPCとPythonを使って音声処理の基本を学ぶための入門ガイドです。マイクからの録音、スピーカーでの再生、そして録音した音声データの加工といった一連の流れを、理論と実践を交えながら体験することを目指します。
 
-## 1. 最初に：ハンズオンの環境構築
-
-このハンズオンを始める前に、Raspberry Piに必要なツールやライブラリをインストールします。この準備が一番重要です。
-
-### 1-1. システムの更新と基本ツールのインストール
-
-まず、システムのパッケージリストを最新にし、音声処理に不可欠なライブラリをインストールします。
-
-```bash
-# パッケージリストを更新
-sudo apt-get update
-
-# 音声ライブラリのビルドに必要な開発ファイルと、高機能な音声処理ツールをインストール
-sudo apt-get install -y portaudio19-dev sox
-```
-- `portaudio19-dev`: Pythonの音声ライブラリ(`sounddevice`など)が音の入出力を行うために必要です。
-- `sox`: 録音や再生、フォーマット変換などができる非常に強力なコマンドラインツールです。
-
-### 1-2. 日本語音声合成(Open JTalk)のセットアップ
-
-オフラインで動作する日本語の音声合成エンジン`Open JTalk`をインストールします。
-
-```bash
-# Open JTalkと日本語辞書をインストール
-sudo apt-get install -y open-jtalk open-jtalk-mecab-naist-jdic
-
-# 高品質な日本語音声ファイル(mei)をダウンロードして展開
-wget http://downloads.sourceforge.net/project/mmdagent/MMDAgent_Example/MMDAgent_Example-1.8/MMDAgent_Example-1.8.zip
-unzip MMDAAgent_Example-1.8.zip
-
-# 音声ファイルを所定のディレクトリにコピー
-sudo cp MMDAgent_Example-1.8/Voice/mei/mei_normal.htsvoice /usr/share/hts-voice/mei_normal.htsvoice
-```
-
-**✅ 動作確認:** ターミナルで以下を実行し、Raspberry Piが喋れば成功です。
-```bash
-echo "こんにちは、ラズベリーパイです" | open_jtalk -m /usr/share/hts-voice/mei_normal.htsvoice -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow - | aplay
-```
-
-### 1-3. 日本語音声認識(Vosk)のセットアップ
-
-オフラインで動作する音声認識エンジン`Vosk`の準備をします。
-
-1.  **Voskモデルのダウンロード:**
-    日本語の音声認識モデル（約1.4GB）をダウンロードし、このプロジェクトフォルダ（`raspi-voice-handson`）内に解凍してください。
-    - **ダウンロードページ:** [https://alphacephei.com/vosk/models](https://alphacephei.com/vosk/models)
-    - ダウンロードするファイル: `vosk-model-ja-0.22`
-    - 解凍後、`vosk-model-ja-0.22` というディレクトリがプロジェクトフォルダ内にある状態にします。
-
-### 1-4. Pythonライブラリのインストール
-
-`requirements.txt` を使って、このプロジェクトで使うPythonライブラリを一括でインストールします。
-
-```bash
-pip install -r requirements.txt
-```
-
-### 1-5. (任意) 日本語入力環境のセットアップ
-
-Raspberry Piのデスクトップで日本語をスムーズに入力したい場合は、`fcitx-mozc` をインストールしておくと便利です。
-```bash
-sudo apt install -y fcitx-mozc
-```
+### このガイドで学べること
+- 音声がデジタルデータになる仕組み（サンプリング、PCM）
+- Pythonを使ったPCの音声入出力（録音・再生）
+- 音声データの正体である「NumPy配列」の操作
+- 音声の視覚化（波形表示）
+- 音声の加工（音量調整、逆再生、速度変更）
 
 ---
 
-## 2. ハンズオン：音声認識 (Vosk)
+## 2. 音声データの基本（理論編）
 
-`Vosk` を使って、マイクで録音した音声をテキストに変換します。
+まず、コンピュータがどのように「音」を扱っているのか、その裏側にある理論を少しだけ覗いてみましょう。ここを理解すると、プログラミングがより面白くなります。
+
+### アナログからデジタルへ
+私たちの周りにある音は、空気の振動（疎密波）です。これは連続的な波であり、「アナログ信号」と呼ばれます。一方、コンピュータは「0」と「1」の集まりである「デジタル信号」しか扱えません。
+
+音声処理とは、この**アナログ信号をデジタル信号に変換（A/D変換）**し、加工した後に、再び**アナログ信号に戻す（D/A変換）**プロセスです。
+
+![Analog to Digital Conversion](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Pcm.svg/450px-Pcm.svg.png)
+*(出典: Wikipedia, Public Domain)*
+
+この変換プロセスには、主に3つの重要なステップがあります。
+
+### サンプリング（標本化）
+アナログの滑らかな波を、一定の時間間隔で区切り、その瞬間の波の高さを測る（標本を採る）作業です。この「時間間隔」を細かくすればするほど、元の波形をより忠実に再現できます。
+
+### サンプリング周波数 (Sampling Frequency)
+**1秒間に何回サンプリングを行うか**を示す値です。単位はHz（ヘルツ）で表現されます。
+- **44100 Hz (44.1 kHz)**: 音楽CDで使われている標準的な値。1秒間に44,100回も波の高さを測定しており、人間の耳には非常に滑らかに聞こえます。
+- **16000 Hz (16 kHz)**: 音声認識や通話などでよく使われる値。人間の声の帯域は十分にカバーできますが、音楽には少し物足りなく感じるかもしれません。
+
+### 量子化 (Quantization) と ビット深度 (Bit Depth)
+サンプリングで測った波の「高さ」を、具体的な数値に置き換える作業が量子化です。この数値をどれだけ細かく表現できるかが**ビット深度**です。
+- **16 bit**: 波の高さを $2^{16}$ = 65,536段階で表現します。非常に一般的で十分な品質です。
+- **24 bit / 32 bit**: より高い解像度を持ち、プロのレコーディングなどで使われます。
+- **float32**: このガイドで使うデータ型。-1.0から1.0までの浮動小数点数で高さを表現し、非常に扱いやすい形式です。
+
+### チャンネル (Channels)
+音源の数を指します。
+- **1 (モノラル)**: すべての音が1つのチャンネルにまとめられています。
+- **2 (ステレオ)**: 左右2つのチャンネルを持ち、音の広がりや定位を表現できます。
+
+### PCM (Pulse-Code Modulation)
+上記の一連の処理（サンプリング→量子化）を経て作られた、**生のデジタル音声データ**のことを**PCMデータ**と呼びます。私たちがこれからPythonで扱うのは、まさにこのPCMデータです。
+
+---
+
+## 3. 環境構築
+
+PCで音声処理を始めるために、必要なPythonライブラリをインストールします。
+
+```bash
+pip install sounddevice numpy matplotlib
+```
+上記のコマンドをターミナル（WindowsならコマンドプロンプトやPowerShell）で実行してください。
+
+---
+
+## 4. ライブラリの詳細な役割
+
+今回インストールした3つのライブラリが、それぞれどのような役割を担っているのかを解説します。
+
+### `sounddevice`: PCの音声入出力を担う「窓口」
+このライブラリは、PythonプログラムとPCのハードウェア（マイク、スピーカー）との間の橋渡しをします。
+- **主な機能**:
+    - `sd.rec()`: マイクからの録音を開始します。
+    - `sd.play()`: 音声データをスピーカーで再生します。
+    - `sd.wait()`: 録音や再生が終わるまでプログラムを待ちます。
+    - `sd.query_devices()`: PCに接続されている音声デバイスの一覧を表示します。
+
+### `numpy`: 音声データを格納・計算する「魔法の箱」
+`sounddevice`で録音されたPCMデータは、`numpy`の**配列（Array）**という特殊な形式でプログラムに渡されます。
+- **なぜNumPyか？**:
+    - **高速**: 大量の数値データを非常に高速に計算できます。音声データは数万〜数百万個の数値の集まりなので、これは非常に重要です。
+    - **便利**: 配列全体に対して一度に計算（足し算、掛け算など）を適用したり、スライス機能で一部分を切り出したり、逆順にしたりといった操作が非常に簡単です。音声加工は、まさにこのNumPy配列の操作そのものです。
+
+### `matplotlib`: 音声データを視覚化する「グラフ描画ツール」
+NumPy配列はただの数値の羅列なので、人間にはそれがどんな音なのか直感的に分かりません。`matplotlib`を使えば、この数値の配列を波形グラフとしてプロットし、視覚的に確認できます。
+
+---
+
+## 5. 実践1: 録音と再生
+
+理論とツールの役割が分かったところで、いよいよ実践です。マイクから5秒間録音し、すぐに再生するプログラムを作成します。
 
 **サンプルコード:**
 ```python
-# 2_vosk_recognition.py
-from vosk import Model, KaldiRecognizer
-import sys
-import wave
-import json
-
-# 事前に録音した "rec.wav" を開く
-# ターミナルで以下のコマンドを実行して録音できます
-# arecord -D plughw:1,0 -f S16_LE -r 16000 rec.wav
-# ※ -D plughw:1,0 の数字は環境によって変わります。arecord -lで確認してください。
-try:
-    wf = wave.open("rec.wav", "rb")
-except FileNotFoundError:
-    print("エラー: rec.wav ファイルが見つかりません。")
-    print("arecordコマンドでマイクから音声を録音してください。")
-    sys.exit(1)
-
-
-# 日本語モデルを読み込む (事前にモデルのダウンロードが必要)
-# https://alphacephei.com/vosk/models から "vosk-model-ja-0.22" をダウンロード・解凍
-try:
-    model = Model("vosk-model-ja-0.22")
-except Exception as e:
-    print(f"エラー: Voskモデルの読み込みに失敗しました。 {e}")
-    print("モデルが正しく配置されているか確認してください。")
-    sys.exit(1)
-
-rec = KaldiRecognizer(model, wf.getframerate())
-rec.SetWords(True) # 単語単位での認識結果も取得する設定
-
-# ファイル全体を読み込んで認識
-while True:
-    data = wf.readframes(4000)
-    if len(data) == 0:
-        break
-    rec.AcceptWaveform(data)
-
-# 最終的な認識結果をJSON形式で表示
-result = json.loads(rec.FinalResult())
-print("--- JSON形式の認識結果 ---")
-print(result)
-
-# テキストだけを取り出して表示
-print("
---- 認識されたテキスト ---")
-print(result.get('text', 'テキストが認識できませんでした。'))
-```
-
----
-
-## 3. ハンズオン：IoT制御 (GPIO)
-
-音声認識とGPIO制御を組み合わせて、声でLEDを操作します。
-
-**🔌 GPIO配線**
-- ブレッドボードにLEDと適切な抵抗（例: 330Ω）を接続します。
-- LEDのアノード（長い足）をRaspberry PiのGPIO 18番ピンに接続します。
-- LEDのカソード（短い足）をGNDピンに接続します。
-
-**サンプルコード:**
-```python
-# 3_led_control.py
-import RPi.GPIO as GPIO
-import time
-
-# --- 音声認識処理 ---
-# ここに2限目の音声認識コードを組み込む。
-# 認識結果のテキストが `text` 変数に格納されるようにする。
-# (このサンプルでは、text変数に直接文字列を入れています)
-
-# text = "電気をつけて"
-text = "明かりを消して"
-# --------------------
-
-
-# GPIOのピン設定
-LED_PIN = 18
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(LED_PIN, GPIO.OUT)
-
-print(f"受け取ったテキスト: 「{text}」")
-
-try:
-    # 認識したテキストに応じてLEDを制御
-    if "つけ" in text or "オン" in text:
-        print("LEDを点灯します")
-        GPIO.output(LED_PIN, GPIO.HIGH)
-        
-    elif "消して" in text or "オフ" in text:
-        print("LEDを消灯します")
-        GPIO.output(LED_PIN, GPIO.LOW)
-        
-    else:
-        print("「つけて」または「消して」を含む言葉に反応します。")
-
-    # 動作確認のために少し待つ
-    # time.sleep(5)
-
-except KeyboardInterrupt:
-    print("プログラムを終了します。")
-
-finally:
-    # プログラム終了時にGPIOをクリーンアップ
-    GPIO.cleanup()
-    print("GPIOをクリーンアップしました。")
-```
-
----
-
-## 4. ハンズオン：音声合成 (OpenJTalk)
-
-テキストから音声を作り出します。`pyopenjtalk` を使って、Raspberry Piに好きな言葉を話させてみましょう。
-
-**サンプルコード:**
-```python
-# 4_text_to_speech.py
-import pyopenjtalk
-import sounddevice as sd
-
-# --- ここに音声認識処理などを組み合わせる ---
-# 例として、認識したテキストや固定の返答を `text` 変数に入れる
-# text = "音声認識に成功しました"
-text = "営業部の売上が一番です"
-# ------------------------------------
-
-
-# テキストから音声波形を生成
-# tts: Text To Speech
-print(f"音声合成中: 「{text}」")
-x, sr = pyopenjtalk.tts(text)
-
-# 音声を再生
-print("再生します...")
-sd.play(x, sr)
-
-# 再生が終わるまで待つ
-sd.wait()
-
-print("再生が完了しました。")
-```
-
----
-
-## 5. ハンズオン：Slack通知
-
-音声操作の結果をSlackに通知する仕組みを作ります。
-
-**事前準備**
-1.  Slackのワークスペースで「Incoming Webhook」を有効にする。
-2.  通知したいチャンネルを選択し、Webhook URLを取得する。
-
-**サンプルコード:**
-```python
-# 5_slack_notification.py
-import requests
-import json
-import os
-
-# SlackのIncoming Webhook URL
-# 環境変数 `SLACK_WEBHOOK_URL` から読み込むのが安全でおすすめ
-# export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
-WEB_HOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
-
-if not WEB_HOOK_URL:
-    print("エラー: 環境変数 `SLACK_WEBHOOK_URL` が設定されていません。")
-    print("SlackのWebhook URLを設定してください。")
-    exit()
-
-# --- 音声認識やGPIO制御と組み合わせる ---
-# 例：LEDを点灯させる音声コマンドを認識したと仮定
-recognized_text = "電気をつけて"
-# ------------------------------------
-
-
-message = ""
-if "つけ" in recognized_text:
-    message = "音声操作でLEDを点灯しました💡"
-elif "消して" in recognized_text:
-    message = "音声操作でLEDを消灯しました。"
-
-# Slackに通知するデータを作成
-if message:
-    data = {
-        'text': message,
-        'username': "RaspberryPi-Bot",
-        'icon_emoji': ":raspberry_pi:"
-    }
-    
-    try:
-        # Slackに通知を送信
-        response = requests.post(WEB_HOOK_URL, data=json.dumps(data))
-        response.raise_for_status() # エラーがあれば例外を発生させる
-        print("Slackに通知を送信しました。")
-
-    except requests.exceptions.RequestException as e:
-        print(f"エラー: Slackへの通知に失敗しました。 {e}")
-else:
-    print("通知するメッセージがありません。")
-```
-
----
-
-## 6. ハンズオン：データ可視化
-
-`matplotlib` を使ってグラフを作成し、音声操作で表示を切り替えます。
-
-**サンプルコード:**
-```python
-# 6_data_visualization.py
-import matplotlib.pyplot as plt
-import pyopenjtalk
-import sounddevice as sd
-
-# グラフの日本語文字化け対策ライブラリ
-try:
-    import japanize_matplotlib
-except ImportError:
-    print("警告: japanize_matplotlib がインストールされていません。")
-    print("日本語が文字化けする可能性があります: pip install japanize-matplotlib")
-
-
-# --- 音声認識処理と組み合わせる ---
-# 認識したテキストが `recognized_text` に入ると仮定
-# recognized_text = "売上のグラフを見せて"
-recognized_text = "部署の売上を円グラフにして"
-# --------------------------------
-
-# ダミーの売上データ
-sales_data = {"営業部": 50, "開発部": 30, "総務部": 20}
-
-# グラフを描画する関数
-def show_graph(graph_type="bar"):
-    plt.figure() # 新しいウィンドウを作成
-    if graph_type == "pie":
-        # 円グラフ
-        plt.pie(sales_data.values(), labels=sales_data.keys(), autopct="%1.1f%%", startangle=90)
-        plt.title("部署別売上シェア")
-    else:
-        # 棒グラフ
-        plt.bar(sales_data.keys(), sales_data.values())
-        plt.title("部署別売上")
-        plt.ylabel("売上（百万円）")
-
-    # 生成したグラフを画像として保存
-    file_name = f"sales_{graph_type}.png"
-    plt.savefig(file_name)
-    print(f"グラフを {file_name} として保存しました。")
-    
-    # グラフを画面に表示
-    plt.show()
-
-# 音声に応じて処理を分岐
-if "グラフ" in recognized_text:
-    if "円" in recognized_text:
-        show_graph("pie")
-        # データを音声で報告
-        report_text = f"円グラフを表示します。営業部のシェアが{sales_data['営業部']}パーセントです。"
-    else:
-        show_graph("bar")
-        # データを音声で報告
-        report_text = f"棒グラフを表示します。営業部の売上は{sales_data['営業部']}百万円です。"
-    
-    # テキストを音声で読み上げ
-    x, sr = pyopenjtalk.tts(report_text)
-    sd.play(x, sr)
-    sd.wait()
-else:
-    print("「グラフ」という言葉に反応して、グラフの表示や報告をします。")
-```
-
----
-
-## 7. 発展課題・アイデア
-
-このハンズオンで学んだことを応用して、さらに面白い機能を追加してみましょう。
-
-### 7-1. オンライン音声合成(gTTS)の利用
-`pyopenjtalk` の代わりに、GoogleのText-to-Speech APIを手軽に使える `gTTS` を試してみましょう。より自然な音声で応答させることができますが、インターネット接続が必要です。再生には `pygame` などを使うと簡単です。
-
-```python
-# pip install gTTS pygame
-from gtts import gTTS
-import pygame
-import os
-
-text = "こんにちは、こちらはGoogleの音声です"
-filename = "gtts_hello.mp3"
-
-# 音声ファイルを作成
-tts = gTTS(text=text, lang='ja')
-tts.save(filename)
-
-# pygameで再生
-pygame.mixer.init()
-pygame.mixer.music.load(filename)
-pygame.mixer.music.play()
-while pygame.mixer.music.get_busy():
-    pygame.time.Clock().tick(10)
-
-pygame.quit()
-os.remove(filename)
-```
-
-### 7-2. 大規模言語モデル(LLM)との連携
-音声認識したテキストを `OpenAI` や `Google Generative AI` のAPIに送り、返ってきた答えを音声合成で喋らせることで、本格的なAIアシスタントを作成できます。
-
-```python
-# pip install google-generativeai
-import google.generativeai as genai
-
-# APIキーを設定 (実際には環境変数などから読み込むのが安全です)
-# genai.configure(api_key="YOUR_API_KEY")
-
-# text = "宇宙について教えて" # Voskで認識したテキスト
-# model = genai.GenerativeModel('gemini-pro')
-# response = model.generate_content(text)
-# print(response.text) # -> このテキストをpyopenjtalkやgTTSで喋らせる
-```
-
----
-
-## 8. (上級者向け) 複数台への自動デプロイ (Ansible)
-
-このプロジェクトのルートディレクトリの1つ上の階層にある `ansible` ディレクトリには、複数台のRaspberry Piにこのハンズオン環境を自動でセットアップするためのAnsible Playbookが含まれています。
-
-### 事前準備
-
-1.  **Ansibleのインストール:**
-    操作用PC（このPC）にAnsibleがインストールされている必要があります。
-    ```bash
-    pip install ansible
-    ```
-
-2.  **SSHキー認証の設定:**
-    操作用PCから、セットアップ対象の全てのRaspberry Piに対して、パスワード入力なしでSSH接続ができるように設定しておく必要があります。（公開鍵認証）
-
-3.  **インベントリファイルの編集:**
-    `../ansible/hosts.ini` ファイルを開き、セットアップしたいRaspberry PiのIPアドレスを記述します。
-    ```ini
-    [raspberry_pis]
-    192.168.1.11
-    192.168.1.12
-    192.168.1.13
-    ```
-
-### 実行
-
-準備が完了したら、このプロジェクトのルートディレクトリ（`raspi-voice-handson`）から、以下のコマンドを実行します。
-
-```bash
-# ansibleディレクトリのhosts.iniをインベントリとして、playbook.ymlを実行
-ansible-playbook -i ../ansible/hosts.ini ../ansible/playbook.yml
-```
-
-これにより、`hosts.ini` に記述された全てのラズパイに対して、環境構築からプロジェクトファイルのコピー、Voskモデルのダウンロードまでが全自動で実行されます。
-
----
-
-## 9. 付録: PCでの音声データ操作
-
-このハンズオンはRaspberry Piを対象としていますが、PCでも`sounddevice`ライブラリを使えば簡単に音声処理ができます。ここでは、PCのマイクで録音した音声を加工する方法を紹介します。
-
-### 9-1. 準備
-
-PCに`sounddevice`と`numpy`をインストールします。
-
-```bash
-pip install sounddevice numpy
-```
-
-### 9-2. 音声の録音・加工・再生
-
-以下のサンプルコードは、PCのマイクで5秒間録音し、その音声を「通常再生」「逆再生」「高速再生」するプログラムです。
-
-**サンプルコード:**
-```python
-# audio_effects_on_pc.py
+# practice_1_record_playback.py
 import sounddevice as sd
 import numpy as np
 
-# --- 1. 録音 ---
-fs = 44100  # サンプリング周波数
+# --- パラメータ設定 ---
+fs = 44100  # サンプリング周波数 (Hz)
 duration = 5  # 録音時間 (秒)
+CHANNELS = 1 # チャンネル数 (1: モノラル)
 
+print("録音を開始します...")
+
+# --- 録音 ---
+# sd.rec()は、録音が完了するのを待たずに次の行に進む（ノンブロッキング）
+# 戻り値は、音声データを格納するNumPy配列
+myrecording = sd.rec(int(duration * fs), samplerate=fs, channels=CHANNELS, dtype='float32')
+
+# sd.wait()を呼ぶことで、録音が完了するまでここで待機する
+sd.wait()
+
+print("録音終了。")
+print(f"録音データの形式: {type(myrecording)}")
+print(f"データ型: {myrecording.dtype}")
+print(f"形状: {myrecording.shape}") # (サンプル数, チャンネル数) が表示される
+
+# --- 再生 ---
+print("録音した音声を再生します...")
+sd.play(myrecording, fs)
+
+# 再生が完了するまで待機
+sd.wait()
+
+print("再生終了。")
+```
+
+---
+
+## 6. 実践2: 音声の可視化（波形表示）
+
+録音した`myrecording`の中身がどうなっているのか、グラフで見てみましょう。
+
+**サンプルコード:**
+```python
+# practice_2_visualize.py
+import sounddevice as sd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --- 録音 (実践1と同じ) ---
+fs = 44100
+duration = 5
+print("5秒間録音します...")
+myrecording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+sd.wait()
+print("録音終了。")
+
+# --- 可視化 ---
+# 時間軸のNumPy配列を作成
+# np.linspace(開始, 終了, 要素数)
+time = np.linspace(0., duration, myrecording.shape[0])
+
+# matplotlibでグラフを描画
+plt.figure(figsize=(10, 4)) # グラフのサイズを指定
+plt.plot(time, myrecording)
+plt.xlabel("Time [s]")
+plt.ylabel("Amplitude")
+plt.title("Waveform")
+plt.grid(True) # グリッド線を表示
+plt.show() # グラフを表示
+```
+このコードを実行すると、横軸が時間、縦軸が音の振幅（波の高さ）のグラフが表示されます。大きな声を出した部分では、波の振れ幅が大きくなっているのが確認できるはずです。
+
+---
+
+## 7. 実践3: 音声データの加工
+
+いよいよ音声加工です。録音したNumPy配列を直接操作して、音にエフェクトをかけてみましょう。
+
+**サンプルコード:**
+```python
+# practice_3_effects.py
+import sounddevice as sd
+import numpy as np
+
+# --- 録音 (実践1と同じ) ---
+fs = 44100
+duration = 5
 print(f"{duration}秒間、何か話してみてください...")
 myrecording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
 sd.wait()
 print("録音終了。")
 
-
-# --- 2. 通常再生 ---
-print("\nまず、録音した音声をそのまま再生します。")
+# --- 元の音声を再生 ---
+print("\n[1] 元の音声を再生します。")
 sd.play(myrecording, fs)
 sd.wait()
-print("通常再生、終了。")
 
+# --- 加工1: 音量を変更する ---
+# 配列の全要素を2倍することで、振幅が2倍になり、音量が大きくなる
+louder_audio = myrecording * 2.0
+# 配列の全要素を0.5倍することで、振幅が半分になり、音量が小さくなる
+quieter_audio = myrecording * 0.5
 
-# --- 3. 逆再生 ---
-print("\n次に、音声を逆再生します。")
-# NumPyのスライス機能を使って配列の順序を逆にする
+print("\n[2] 音量を大きくして再生します。")
+sd.play(louder_audio, fs)
+sd.wait()
+
+print("\n[3] 音量を小さくして再生します。")
+sd.play(quieter_audio, fs)
+sd.wait()
+# 注意: 音量を大きくしすぎると音割れ（クリッピング）の原因になります。
+
+# --- 加工2: 逆再生 ---
+# NumPyのスライス機能 [::-1] を使って配列の順序をすべて逆にする
 reversed_audio = myrecording[::-1]
+
+print("\n[4] 逆再生します。")
 sd.play(reversed_audio, fs)
 sd.wait()
-print("逆再生、終了。")
 
+# --- 加工3: 速度を変更する ---
+# 再生時のサンプリング周波数を変えることで、再生速度が変わる
+speed_factor_fast = 1.5  # 1.5倍速
+speed_factor_slow = 0.7  # 0.7倍速
 
-# --- 4. 高速再生（周波数を高くする） ---
-print("\n最後に、音声を1.5倍速で再生します。（音が高くなります）")
-# 再生時のサンプリング周波数を上げることで、再生速度が上がる
-speed_factor = 1.5
-sd.play(myrecording, int(fs * speed_factor))
+print(f"\n[5] {speed_factor_fast}倍速で再生します。（音が高くなる）")
+sd.play(myrecording, int(fs * speed_factor_fast))
 sd.wait()
-print("高速再生、終了。")
+
+print(f"\n[6] {speed_factor_slow}倍速で再生します。（音が低くなる）")
+sd.play(myrecording, int(fs * speed_factor_slow))
+sd.wait()
+
+print("\nすべての再生が完了しました。")
 ```
 
-### 操作のポイント
+---
 
-- **逆再生**: `reversed_audio = myrecording[::-1]`
-    - 録音データであるNumPy配列 `myrecording` を、Pythonのスライス表記 `[::-1]` を使って逆順にしているだけです。配列の要素（音のサンプル）が逆になるので、結果として音声が逆再生されます。
-- **高速再生**: `sd.play(myrecording, int(fs * speed_factor))`
-    - `play`関数に渡すサンプリング周波数を `fs` の1.5倍にしています。これにより、音声データは1.5倍の速度で処理され、再生時間が短縮されます。再生速度が上がると、音の周波数も全体的に高くなります。
+## 8. 次のステップへ
+
+このガイドでは、音声処理の入り口を学びました。ここからさらに発展させるためのアイデアをいくつか紹介します。
+
+- **WAVファイルへの保存と読み込み**:
+  `scipy`ライブラリを使えば、録音した音声をWAVファイルとして保存したり、既存のWAVファイルを読み込んで加工したりできます。
+  ```python
+  # pip install scipy
+  from scipy.io.wavfile import write, read
+
+  # 保存
+  write("output.wav", fs, myrecording)
+
+  # 読み込み
+  samplerate, data = read("input.wav")
+  ```
+
+- **周波数分析 (FFT)**:
+  `numpy.fft`モジュールを使うと、音を周波数成分に分解できます。これにより、「ドレミ」のような音の高さ（ピッチ）を検出したり、特定の周波数帯を強調／抑制するイコライザーのようなエフェクトを実装したりできます。
+
+- **より高度なエフェクト**:
+  ディレイ、リバーブ、コーラスといったエフェクトも、すべてはNumPy配列の巧妙な操作によって実現されています。ぜひ挑戦してみてください。
