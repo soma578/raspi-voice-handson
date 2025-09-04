@@ -1,16 +1,12 @@
-# --- 基本ライブラリ ---
-vosk
+# 音声処理の基本ライブラリ
 sounddevice
-requests
+numpy
 matplotlib
-japanize-matplotlib
+scipy
+
+# 音声合成＆音声認識ライブラリ
 pyopenjtalk
+vosk
 
-# --- 代替・追加ライブラリ (必要に応じてインストール) ---
-# pyaudio # sounddeviceの代替
-# pygame  # gTTSの再生などで使用
-
-# --- 発展課題で利用するライブラリ ---
-# gTTS
-# openai
-# google-generativeai
+# (任意) Matplotlibの日本語文字化け対策
+japanize-matplotlib
