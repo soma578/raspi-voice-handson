@@ -32,7 +32,7 @@ sudo apt-get install -y open-jtalk open-jtalk-mecab-naist-jdic
 
 # 高品質な日本語音声ファイル(mei)をダウンロードして展開
 wget http://downloads.sourceforge.net/project/mmdagent/MMDAgent_Example/MMDAgent_Example-1.8/MMDAgent_Example-1.8.zip
-unzip MMDAgent_Example-1.8.zip
+unzip MMDAAgent_Example-1.8.zip
 
 # 音声ファイルを所定のディレクトリにコピー
 sudo cp MMDAgent_Example-1.8/Voice/mei/mei_normal.htsvoice /usr/share/hts-voice/mei_normal.htsvoice
@@ -431,3 +431,69 @@ ansible-playbook -i ../ansible/hosts.ini ../ansible/playbook.yml
 ```
 
 これにより、`hosts.ini` に記述された全てのラズパイに対して、環境構築からプロジェクトファイルのコピー、Voskモデルのダウンロードまでが全自動で実行されます。
+
+---
+
+## 9. 付録: PCでの音声データ操作
+
+このハンズオンはRaspberry Piを対象としていますが、PCでも`sounddevice`ライブラリを使えば簡単に音声処理ができます。ここでは、PCのマイクで録音した音声を加工する方法を紹介します。
+
+### 9-1. 準備
+
+PCに`sounddevice`と`numpy`をインストールします。
+
+```bash
+pip install sounddevice numpy
+```
+
+### 9-2. 音声の録音・加工・再生
+
+以下のサンプルコードは、PCのマイクで5秒間録音し、その音声を「通常再生」「逆再生」「高速再生」するプログラムです。
+
+**サンプルコード:**
+```python
+# audio_effects_on_pc.py
+import sounddevice as sd
+import numpy as np
+
+# --- 1. 録音 ---
+fs = 44100  # サンプリング周波数
+duration = 5  # 録音時間 (秒)
+
+print(f"{duration}秒間、何か話してみてください...")
+myrecording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+sd.wait()
+print("録音終了。")
+
+
+# --- 2. 通常再生 ---
+print("\nまず、録音した音声をそのまま再生します。")
+sd.play(myrecording, fs)
+sd.wait()
+print("通常再生、終了。")
+
+
+# --- 3. 逆再生 ---
+print("\n次に、音声を逆再生します。")
+# NumPyのスライス機能を使って配列の順序を逆にする
+reversed_audio = myrecording[::-1]
+sd.play(reversed_audio, fs)
+sd.wait()
+print("逆再生、終了。")
+
+
+# --- 4. 高速再生（周波数を高くする） ---
+print("\n最後に、音声を1.5倍速で再生します。（音が高くなります）")
+# 再生時のサンプリング周波数を上げることで、再生速度が上がる
+speed_factor = 1.5
+sd.play(myrecording, int(fs * speed_factor))
+sd.wait()
+print("高速再生、終了。")
+```
+
+### 操作のポイント
+
+- **逆再生**: `reversed_audio = myrecording[::-1]`
+    - 録音データであるNumPy配列 `myrecording` を、Pythonのスライス表記 `[::-1]` を使って逆順にしているだけです。配列の要素（音のサンプル）が逆になるので、結果として音声が逆再生されます。
+- **高速再生**: `sd.play(myrecording, int(fs * speed_factor))`
+    - `play`関数に渡すサンプリング周波数を `fs` の1.5倍にしています。これにより、音声データは1.5倍の速度で処理され、再生時間が短縮されます。再生速度が上がると、音の周波数も全体的に高くなります。
