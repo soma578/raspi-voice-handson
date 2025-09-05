@@ -12,11 +12,20 @@
 
 ### 手順1: 必要なツールのインストール
 
-Pythonライブラリのビルドに必要なツールや、音声処理で利用する外部ツールをまとめてインストールします。
+システムやPythonライブラリが必要とする外部ツールをインストールします。ネットワーク環境によっては一度にインストールできない場合があるため、コマンドを分けて実行します。
 
 ```bash
+# パッケージリストを更新
 sudo apt update
-sudo apt install -y build-essential cmake libportaudio2 python3-pip open-jtalk open-jtalk-mecab-naist-jdic ffmpeg wget unzip
+
+# ビルドツールとPython関連
+sudo apt install -y build-essential cmake python3-pip python3-venv
+
+# 音声関連ライブラリ
+sudo apt install -y libportaudio2 open-jtalk open-jtalk-mecab-naist-jdic
+
+# ユーティリティとコーデック
+sudo apt install -y ffmpeg wget unzip
 ```
 
 ### 手順2: Python仮想環境のセットアップ
@@ -49,11 +58,12 @@ pip install -r requirements.txt
 wget http://downloads.sourceforge.net/project/mmdagent/MMDAgent_Example/MMDAgent_Example-1.8/MMDAgent_Example-1.8.zip
 
 # 解凍してボイスファイルを配置
-unzip MMDAgent_Example-1.8.zip
+unzip -o MMDAgent_Example-1.8.zip
 mkdir -p voices
 mv MMDAgent_Example-1.8/Voice/*/*.htsvoice voices/
 rm -rf MMDAgent_Example-1.8*
 ```
+**注記:** `wget`でのダウンロードに失敗する場合、お手元の `MMDAgent_Example-1.8.zip` ファイルをこのディレクトリにコピーしてから、`unzip`以降のコマンドを手動で実行してください。
 
 #### Vosk (音声認識)
 Voskの日本語認識モデルをダウンロード・配置します。
@@ -63,7 +73,7 @@ Voskの日本語認識モデルをダウンロード・配置します。
 wget https://alphacephei.com/vosk/models/vosk-model-ja-0.22.zip
 
 # 解凍して配置
-unzip vosk-model-ja-0.22.zip
+unzip -o vosk-model-ja-0.22.zip
 rm vosk-model-ja-0.22.zip
 ```
 これにより、プロジェクト直下に`vosk-model-ja-0.22`ディレクトリが作成されます。
