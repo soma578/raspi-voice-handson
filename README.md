@@ -22,7 +22,7 @@ sudo apt update
 sudo apt install -y build-essential cmake python3-pip python3-venv
 
 # 音声関連ライブラリ
-sudo apt install -y libportaudio2 open-jtalk open-jtalk-mecab-naist-jdic
+sudo apt install -y libportaudio2 portaudio19-dev open-jtalk open-jtalk-mecab-naist-jdic
 
 # ユーティリティとコーデック
 sudo apt install -y ffmpeg wget unzip
