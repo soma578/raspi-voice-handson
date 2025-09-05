@@ -10,60 +10,63 @@
 
 ## 2. クイックスタート: 環境構築 (Ubuntu版)
 
-まず、このガイドで必要になるツールをすべてPCにセットアップします。
+### 手順1: 必要なツールのインストール
 
-### 手順1: システム依存関係のインストール
-
-`sounddevice`や`pyopenjtalk`といったライブラリは、システムにインストールされている他のソフトウェアに依存しています。以下のコマンドで、必要な依存関係をすべてインストールします。
+Pythonライブラリのビルドに必要なツールや、音声処理で利用する外部ツールをまとめてインストールします。
 
 ```bash
 sudo apt update
-sudo apt install -y build-essential cmake libportaudio2 python3-pip
+sudo apt install -y build-essential cmake libportaudio2 python3-pip open-jtalk open-jtalk-mecab-naist-jdic ffmpeg wget unzip
 ```
 
 ### 手順2: Python仮想環境のセットアップ
 
-プロジェクトごとに環境を分離するため、Pythonの仮想環境（venv）を作成します。
+プロジェクトごとにPythonの環境を分離するため、仮想環境（venv）を作成して有効化します。
 
 ```bash
 # 仮想環境を作成
 python3 -m venv venv
 
-# 仮想環境を有効化 (Ubuntu/Linuxの場合)
+# 仮想環境を有効化
 source venv/bin/activate
 ```
 
-### 手順3: Pythonライブラリの一括インストール
+### 手順3: Pythonライブラリのインストール
 
-このプロジェクトに必要なライブラリは`requirements.txt`にまとめてあります。
-仮想環境が有効化されていることを確認してから、以下のコマンドを実行してください。
+`requirements.txt`に必要なライブラリがまとめてあります。仮想環境を有効化した状態で、以下のコマンドを実行します。
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 手順4: 外部ツール `ffmpeg` のインストール
+### 手順4: 音声モデルとボイスフォントの準備
 
-`ffmpeg`は、音声や動画のフォーマットを変換するための非常に強力な外部ツールです。後の章でWAVファイルをMP3に変換する際に使います。
+#### Open JTalk (音声合成)
+`pyopenjtalk`が利用するHTS Voiceファイルをダウンロード・配置します。
 
 ```bash
-sudo apt install -y ffmpeg
+# MMDAgentのサンプルをダウンロード
+wget http://downloads.sourceforge.net/project/mmdagent/MMDAgent_Example/MMDAgent_Example-1.8/MMDAgent_Example-1.8.zip
+
+# 解凍してボイスファイルを配置
+unzip MMDAgent_Example-1.8.zip
+mkdir -p voices
+mv MMDAgent_Example-1.8/Voice/*/*.htsvoice voices/
+rm -rf MMDAgent_Example-1.8*
 ```
-インストール後、`ffmpeg -version`と入力し、バージョン情報が表示されれば成功です。
 
-### 手順5: 音声認識・合成モデルの準備
+#### Vosk (音声認識)
+Voskの日本語認識モデルをダウンロード・配置します。
 
-#### Vosk APIとモデル (音声認識用)
-1.  **リポジトリのクローン**: `vosk-api`を直接利用するため、リポジトリをクローンします。
-    ```bash
-    git clone https://github.com/alphacep/vosk-api.git
-    ```
-2.  **モデルのダウンロード**: [Vosk Models Page](https://alphacephei.com/vosk/models)にアクセスし、日本語モデル（`vosk-model-ja-0.22`など）をダウンロードします。
-3.  **配置**: ダウンロードしたzipファイルを解凍し、出てきたモデルフォルダを、このプロジェクトフォルダ（各種`practice_..._.py`を置く場所）内に配置してください。
+```bash
+# 日本語モデルをダウンロード
+wget https://alphacephei.com/vosk/models/vosk-model-ja-0.22.zip
 
-#### Open JTalkボイスフォント (音声合成用)
-1.  **`voices`ディレクトリの作成**: プロジェクトフォルダに`voices`という名前の新しいディレクトリを作成してください。
-2.  **ダウンロードと配置**: [MMDAgent & Project-NAIPのSourceForgeページ](https://osdn.net/projects/mmdagent/releases/p12473)から`MMDAgent_Example-1.8.zip`をダウンロードし、解凍します。中にある`Voice`フォルダ内の`mei`や`takumi`といった各フォルダの中から、`.htsvoice`で終わるファイルをすべて探し、先ほど作成した`voices`ディレクトリの中にコピーします。
+# 解凍して配置
+unzip vosk-model-ja-0.22.zip
+rm vosk-model-ja-0.22.zip
+```
+これにより、プロジェクト直下に`vosk-model-ja-0.22`ディレクトリが作成されます。
 
 ---
 
@@ -367,3 +370,13 @@ sf.write("my_voice_mod.wav", synthesized, fs)
 ## 13. まとめ
 
 このガイドでは、音声処理の基本的な理論から、Pythonを使った録音・再生・加工・ファイル操作、さらには音声合成・認識、フォーマット変換、ボイスチェンジまで、一通りの技術を実践的に学びました。ぜひ、自分だけの音声アプリケーション開発に挑戦してみてください。
+
+---
+### (補足) Ubuntuでの日本語入力について
+
+このプロジェクトのコード実行に直接は必要ありませんが、Ubuntuのターミナルやエディタで日本語を快適に入力したい場合は、`fcitx-mozc`のような日本語入力エンジン(IME)のインストールを推奨します。
+
+```bash
+sudo apt install -y fcitx-mozc
+```
+インストール後、システムの「設定」→「地域と言語」から入力ソースを追加してください。
