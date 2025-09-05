@@ -1,6 +1,6 @@
 # 音声処理の基本ライブラリ
 sounddevice
-numpy
+numpy<2.3.0
 matplotlib
 scipy
 
@@ -14,6 +14,7 @@ PyAudio
 pygame
 pyworld
 soundfile
+cmake
 
 # (任意) Matplotlibの日本語文字化け対策
 japanize-matplotlib
