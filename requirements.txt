@@ -1,6 +1,6 @@
 # 音声処理の基本ライブラリ
 sounddevice
-numpy
+numpy<2.3.0
 matplotlib
 scipy
 
