@@ -72,6 +72,11 @@ Pythonの音声処理ライブラリは、音声データを**Numpy配列**と�
 
 ## 4. 実践スクリプト解説
 
+各スクリプトの目的と、主要なライブラリの役割について解説します。
+
+- **各ライブラリやツールの詳細**: [`LIBRARIES_GUIDE.md`](./LIBRARIES_GUIDE.md) を参照してください。
+- **各スクリプトのコード全文と詳細な解説**: [`CODE_GUIDE.md`](./CODE_GUIDE.md) を参照してください。
+
 ### **practice_1_record_playback.py**: 基本的な録音と再生
 `sounddevice`ライブラリを使用し、音声の録音と再生を行います。`sounddevice`はNumpy配列を直接扱え、遅延も少ないため、このハンズオンの基本となります。
 
