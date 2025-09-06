@@ -5,7 +5,7 @@ from vosk import Model, KaldiRecognizer
 import json
 import os
 
-MODEL_DIR = "vosk-model-ja-0.22"
+MODEL_DIR = "models/vosk/ja-0.22"
 FS = 16000  # 日本語モデルは16000Hzを推奨
 DURATION = 5
 

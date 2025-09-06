@@ -10,9 +10,19 @@
 
 ## 2. クイックスタート: 環境構築 (Ubuntu版)
 
-### 手順1: 必要なツールのインストール
+### 手順1: リポジトリのクローン
 
-システムやPythonライブラリが必要とする外部ツールをインストールします。ネットワーク環境によっては一度にインストールできない場合があるため、コマンドを分けて実行します。
+まず、このプロジェクトのリポジトリをローカルマシンにクローンします。
+
+```bash
+# このリポジトリのURLに置き換えてください
+git clone https://github.com/your-username/your-repository-name.git
+cd your-repository-name
+```
+
+### 手順2: 必要なツールのインストール
+
+システムやPythonライブラリが必要とする外部ツールをインストールします。
 
 ```bash
 # パッケージリストを更新
@@ -28,9 +38,9 @@ sudo apt install -y libportaudio2 portaudio19-dev open-jtalk open-jtalk-mecab-na
 sudo apt install -y ffmpeg wget unzip
 ```
 
-### 手順2: Python仮想環境のセットアップ
+### 手順3: Python環境のセットアップ
 
-プロジェクトごとにPythonの環境を分離するため、仮想環境（venv）を作成して有効化します。
+プロジェクト用のPython仮想環境を作成し、必要なライブラリをインストールします。
 
 ```bash
 # 仮想環境を作成
@@ -38,45 +48,42 @@ python3 -m venv venv
 
 # 仮想環境を有効化
 source venv/bin/activate
-```
 
-### 手順3: Pythonライブラリのインストール
-
-`requirements.txt`に必要なライブラリがまとめてあります。仮想環境を有効化した状態で、以下のコマンドを実行します。
-
-```bash
+# Pythonライブラリをインストール
 pip install -r requirements.txt
 ```
 
-### 手順4: 音声モデルとボイスフォントの準備
+### 手順4: 音声モデルとボイスフォントのダウンロード
+
+音声認識と合成に必要なモデルファイルをダウンロードし、所定のディレクトリに配置します。
 
 #### Open JTalk (音声合成)
-`pyopenjtalk`が利用するHTS Voiceファイルをダウンロード・配置します。
-
 ```bash
 # MMDAgentのサンプルをダウンロード
 wget http://downloads.sourceforge.net/project/mmdagent/MMDAgent_Example/MMDAgent_Example-1.8/MMDAgent_Example-1.8.zip
 
-# 解凍してボイスファイルを配置
-unzip -o MMDAgent_Example-1.8.zip
-mkdir -p voices
-mv MMDAgent_Example-1.8/Voice/*/*.htsvoice voices/
-rm -rf MMDAgent_Example-1.8*
+# 解凍してボイスファイルをvoices/ディレクトリに配置
+unzip -o MMDAgent_Example-1.8.zip -d temp_unzip
+mv temp_unzip/MMDAgent_Example-1.8/Voice/*/*.htsvoice voices/
+rm -rf temp_unzip MMDAgent_Example-1.8.zip
 ```
 **注記:** `wget`でのダウンロードに失敗する場合、お手元の `MMDAgent_Example-1.8.zip` ファイルをこのディレクトリにコピーしてから、`unzip`以降のコマンドを手動で実行してください。
 
 #### Vosk (音声認識)
-Voskの日本語認識モデルをダウンロード・配置します。
-
 ```bash
 # 日本語モデルをダウンロード
 wget https://alphacephei.com/vosk/models/vosk-model-ja-0.22.zip
 
-# 解凍して配置
-unzip -o vosk-model-ja-0.22.zip
+# 解凍してモデルをmodels/vosk/ディレクトリに配置
+unzip -o vosk-model-ja-0.22.zip -d models/vosk/
+# モデルディレクトリの名前を統一
+mv models/vosk/vosk-model-ja-0.22 models/vosk/ja-0.22
 rm vosk-model-ja-0.22.zip
 ```
-これにより、プロジェクト直下に`vosk-model-ja-0.22`ディレクトリが作成されます。
+これにより、`models/vosk/ja-0.22` というディレクトリにモデルが配置されます。
+
+---
+セットアップは以上です。各`practice_..._.py`ファイルを実行して、音声処理を試してみてください。
 
 ---
 
