@@ -4,8 +4,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import spectrogram
 import sys
+import argparse
 
-FILENAME = "my_voice.wav" # practice_4_wav.pyで作成したファイル
+# --- 説明 ---
+# このスクリプトは、指定されたWAVファイルのスペクトログラム（周波数分析）を表示します。
+# コマンドラインから -f (または --file) オプションでWAVファイルを指定できます。
+# 例: python practice_2b_spectrogram.py -f my_voice.wav
+# 引数なしで実行すると、デフォルトで "my_voice.wav" を読み込みます。
+# 詳細は -h オプションで確認してください。
+# ----------
+
+# コマンドライン引数の設定
+parser = argparse.ArgumentParser(description="Generate and display a spectrogram from a WAV file.")
+parser.add_argument("-f", "--file", type=str, default="my_voice.wav", help="Path to the WAV file to analyze. Defaults to my_voice.wav.")
+args = parser.parse_args()
+
+FILENAME = args.file
 
 print(f"{FILENAME} のスペクトログラムを描画します。")
 
@@ -13,7 +27,8 @@ try:
     wr = wave.open(FILENAME, "r")
 except FileNotFoundError:
     print(f"エラー: {FILENAME} が見つかりません。")
-    print("先に practice_4_wav.py を実行して、解析するWAVファイルを作成してください。")
+    if FILENAME == "my_voice.wav":
+        print("先に practice_4_wav.py を実行して、解析するWAVファイルを作成してください。")
     sys.exit()
 
 # WAVファイルからデータを読み込み
