@@ -4,8 +4,6 @@ venv/
 # Downloaded model and voice files
 models/vosk/*
 !models/vosk/.gitkeep
-voices/*
-!voices/.gitkeep
 
 # Zip files
 *.zip

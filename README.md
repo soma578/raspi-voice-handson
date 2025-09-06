@@ -53,21 +53,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 手順4: 音声モデルとボイスフォントのダウンロード
+### 手順4: 音声モデルのダウンロード
 
-音声認識と合成に必要なモデルファイルをダウンロードし、所定のディレクトリに配置します。
-
-#### Open JTalk (音声合成)
-```bash
-# MMDAgentのサンプルをダウンロード
-wget http://downloads.sourceforge.net/project/mmdagent/MMDAgent_Example/MMDAgent_Example-1.8/MMDAgent_Example-1.8.zip
-
-# 解凍してボイスファイルをvoices/ディレクトリに配置
-unzip -o MMDAgent_Example-1.8.zip -d temp_unzip
-mv temp_unzip/MMDAgent_Example-1.8/Voice/*/*.htsvoice voices/
-rm -rf temp_unzip MMDAgent_Example-1.8.zip
-```
-**注記:** `wget`でのダウンロードに失敗する場合、お手元の `MMDAgent_Example-1.8.zip` ファイルをこのディレクトリにコピーしてから、`unzip`以降のコマンドを手動で実行してください。
+音声認識に必要なVoskのモデルファイルをダウンロードし、所定のディレクトリに配置します。
+Open JTalkのボイスモデルは、リポジトリの`voices`ディレクトリに同梱されています。
 
 #### Vosk (音声認識)
 ```bash
