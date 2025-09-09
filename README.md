@@ -36,6 +36,24 @@ mv models/vosk/vosk-model-ja-0.22 models/vosk/ja-0.22
 rm vosk-model-ja-0.22.zip
 ```
 
+### (補足) Linuxでの音声トラブルシューティング
+もし「音声デバイスが見つからない」といったエラーが出る場合、サウンドサーバー`PulseAudio`が正しく動作していない可能性があります。以下のコマンドでインストールと確認を試してください。
+
+```bash
+# PulseAudioをインストール
+sudo apt install pulseaudio
+
+# PulseAudioを手動で起動
+pulseaudio --start
+
+# PCに接続されているマイク（入力）を確認
+pactl list short sources
+
+# PCに接続されているスピーカー（出力）を確認
+pactl list short sinks
+```
+
+
 ---
 
 ## 3. 音声データの基本（理論編）
