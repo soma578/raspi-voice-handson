@@ -13,6 +13,7 @@ gTTS
 PyAudio
 pygame
 pyworld
+setuptools
 soundfile
 cmake
 

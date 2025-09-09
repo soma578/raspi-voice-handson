@@ -47,7 +47,15 @@ sd.play(myrecording[::-1], FS); sd.wait()
 
 # 3. 結合
 print("1秒の無音を挟んで2回再生")
-one_sec_silence = np.zeros((FS * 1, myrecording.ndim), dtype=myrecording.dtype)
+# 入力音声のチャンネル数に合わせて無音配列の形状を決定する
+if myrecording.ndim == 1:
+    # 1D配列（モノラル）の場合
+    one_sec_silence = np.zeros(FS * 1, dtype=myrecording.dtype)
+else:
+    # 2D配列（モノラルまたはステレオ）の場合
+    num_channels = myrecording.shape[1]
+    one_sec_silence = np.zeros((FS * 1, num_channels), dtype=myrecording.dtype)
+
 combined_audio = np.concatenate([myrecording, one_sec_silence, myrecording])
 sd.play(combined_audio, FS); sd.wait()
 

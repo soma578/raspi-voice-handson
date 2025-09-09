@@ -25,7 +25,12 @@ FILENAME = args.output
 print(f"録音開始... ({FILENAME}に保存)")
 recording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
 sd.wait()
-write(FILENAME, FS, recording)
+
+# float32からint16へ変換し、互換性の高い形式で保存
+print("ファイル形式を変換して保存中...")
+recording_int16 = np.int16(recording * 32767)
+write(FILENAME, FS, recording_int16)
+
 print("保存完了。")
 
 # WAVファイルを読み込んで再生

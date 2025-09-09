@@ -54,4 +54,9 @@ plt.xlabel('Time [sec]')
 plt.title(f'Spectrogram of {FILENAME}')
 plt.ylim(0, 8000) # 8kHzまで表示
 plt.colorbar(label='Intensity [dB]')
-plt.show()
+
+# グラフをファイルに保存
+output_filename = "spectrogram.png"
+plt.savefig(output_filename)
+print(f"スペクトログラムを {output_filename} として保存しました。")
+# plt.show() # GUI環境がない場合はこちらをコメントアウト

@@ -49,4 +49,9 @@ plt.xlabel("Time [s]")
 plt.ylabel("Amplitude")
 plt.title("Waveform")
 plt.grid()
-plt.show()
+
+# グラフをファイルに保存
+output_filename = "waveform.png"
+plt.savefig(output_filename)
+print(f"グラフを {output_filename} として保存しました。")
+# plt.show() # GUI環境がない場合はこちらをコメントアウト
