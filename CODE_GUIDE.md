@@ -19,69 +19,118 @@ import numpy as np
 import argparse
 import soundfile as sf
 
-# --- 説明 ---
-# このスクリプトは、音声を録音して再生するか、指定されたWAVファイルを再生します。
-# コマンドラインから -f (または --file) オプションでWAVファイルを指定できます。
-# 例: python practice_1_record_playback.py -f my_voice.wav
-# 引数なしで実行すると、5秒間の録音を行います。
-# 詳細は -h オプションで確認してください。
-# ----------
-
-# コマンドライン引数の設定
 parser = argparse.ArgumentParser(description="Record audio or play a WAV file.")
 parser.add_argument("-f", "--file", type=str, help="Path to the WAV file to play.")
 args = parser.parse_args()
 
-# パラメータ設定
-FS = 44100  # サンプリング周波数
-DURATION = 5  # 録音時間 (秒)
+FS = 44100
+DURATION = 5
 
 if args.file:
-    # WAVファイルを読み込む
     try:
         myrecording, FS = sf.read(args.file, dtype='float32')
         print(f"WAVファイル '{args.file}' を読み込みました。")
-    except FileNotFoundError:
-        print(f"エラー: ファイル '{args.file}' が見つかりません。")
-        exit()
     except Exception as e:
-        print(f"エラー: ファイル '{args.file}' を読み込めません。 - {e}")
-        exit()
+        exit(f"エラー: ファイルを読み込めません。 {e}")
 else:
-    # デバイス一覧を表示して確認
-    # print(sd.query_devices())
-
     print(f"{DURATION}秒間、録音します...")
-
-    # 録音
     myrecording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
-    sd.wait()  # 録音終了まで待機
-
+    sd.wait()
     print("録音終了。")
 
-print(f"データ型: {myrecording.dtype}, 形状: {myrecording.shape}")
-
-# 再生
 print("再生します...")
 sd.play(myrecording, FS)
-sd.wait()  # 再生終了まで待機
-
+sd.wait()
 print("再生完了。")
 ```
 
 ### 解説
-1.  **`argparse`**: コマンドラインで `-f` オプションを受け付けるために使用します。
-2.  **`args.file`のチェック**: `-f` でファイルが指定されていれば、`soundfile.read()` (sf.read) でそのファイルを読み込みます。指定されていなければ、`sounddevice.rec()` (sd.rec) で録音を開始します。
-3.  **`sd.rec()`**: `(録音時間 * サンプリング周波数)` で録音する総サンプル数を計算し、録音を実行します。戻り値は音声データをNumpy配列として格納したものです。
-4.  **`sd.wait()`**: 録音や再生が完了するまで、プログラムの実行を一時停止します。
-5.  **`sd.play()`**: Numpy配列として格納された音声データを、指定されたサンプリング周波数で再生します。
+1.  **`argparse`**: コマンドラインで `-f` オプションを受け付けます。
+2.  **`args.file`のチェック**: ファイルが指定されていれば `soundfile.read()` で読み込み、なければ `sounddevice.rec()` で録音します。
+3.  **`sd.play()`**: Numpy配列として格納された音声データを再生します。
+
+---
+
+## `practice_1b_pyaudio_playback.py`
+
+### 役割
+`PyAudio`ライブラリを使ったWAVファイルの再生方法を示します。ストリーミング再生の基本的な考え方を理解できます。
+
+### コード全文
+```python
+# practice_1b_pyaudio_playback.py
+import wave
+import pyaudio
+import sys
+
+FILENAME = "my_voice.wav"
+
+try:
+    wf=wave.open(FILENAME, "r")
+except FileNotFoundError:
+    exit(f"エラー: {FILENAME} が見つかりません。先に practice_4_wav.py を実行してください。")
+
+p = pyaudio.PyAudio()
+stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                channels=wf.getnchannels(),
+                rate=wf.getframerate(),
+                output=True)
+chunk = 1024
+data = wf.readframes(chunk)
+while data != b'':
+    stream.write(data)
+    data = wf.readframes(chunk)
+stream.close()
+p.terminate()
+print(f"{FILENAME} の再生が完了しました。")
+```
+
+### 解説
+1.  **`pyaudio.PyAudio()`**: PyAudioのインスタンスを生成します。
+2.  **`p.open(...)`**: WAVファイルのパラメータ（チャンネル数、サンプリング周波数など）を元に、音声出力用の「ストリーム」を開きます。
+3.  **`wf.readframes(chunk)`**: WAVファイルから `chunk` サイズ（ここでは1024サンプル）ずつ、データを少しずつ読み込みます。
+4.  **`stream.write(data)`**: 読み込んだデータをストリームに書き込むことで、音声が再生されます。ファイルが終わるまでこれを繰り返します。
+
+---
+
+## `practice_1c_pygame_playback.py`
+
+### 役割
+ゲームライブラリ `PyGame` の音声機能 `mixer` を使った再生方法を示します。MP3など多様な形式を簡単に扱えるのが特徴です。
+
+### コード全文
+```python
+# practice_1c_pygame_playback.py
+import pygame.mixer as m
+import pygame.time
+import sys, os
+
+FILENAME = "converted_audio.mp3"
+
+if not os.path.exists(FILENAME):
+    exit(f"エラー: {FILENAME} が見つかりません。先に practice_7_converter.py を実行してください。")
+
+m.init()
+m.music.load(FILENAME)
+m.music.play()
+while m.music.get_busy():
+    pygame.time.delay(100)
+m.music.stop()
+print(f"{FILENAME} の再生が完了しました。")
+```
+
+### 解説
+1.  **`m.init()`**: `pygame.mixer` を初期化します。
+2.  **`m.music.load()`**: 再生したい音声ファイルを読み込みます。
+3.  **`m.music.play()`**: 再生を開始します。再生はバックグラウンドで行われます。
+4.  **`while m.music.get_busy()`**: `get_busy()` が `True` の間（＝再生中）、ループを続けることで、再生が終わるまでプログラムが終了しないように待機します。
 
 ---
 
 ## `practice_2_visualize.py`
 
 ### 役割
-音声データを時間軸の波形としてグラフにプロット（可視化）します。
+音声データを時間軸の波形としてグラフにプロットし、画像ファイルとして保存します。
 
 ### コード全文
 ```python
@@ -92,16 +141,21 @@ import matplotlib.pyplot as plt
 import argparse
 import soundfile as sf
 
-# (argparseによる引数処理部分は practice_1 と同様)
-# ...
+# (argparse部分は practice_1 と同様)
+parser = argparse.ArgumentParser(description="Visualize audio from recording or a WAV file.")
+parser.add_argument("-f", "--file", type=str, help="Path to the WAV file to visualize.")
+args = parser.parse_args()
+
+FS = 44100
+DURATION = 5
 
 if args.file:
-    # ...
+    # ... (ファイル読み込み)
 else:
-    # ...
+    # ... (録音)
 
 # 時間軸を作成
-time = np.arange(0, DURATION, 1/FS)
+time = np.arange(0, len(myrecording)) / FS
 
 # グラフを描画
 plt.figure(figsize=(12, 4))
@@ -110,13 +164,17 @@ plt.xlabel("Time [s]")
 plt.ylabel("Amplitude")
 plt.title("Waveform")
 plt.grid()
-plt.show()
+
+# グラフをファイルに保存
+output_filename = "waveform.png"
+plt.savefig(output_filename)
+print(f"グラフを {output_filename} として保存しました。")
 ```
 
 ### 解説
-1.  **`np.arange(0, DURATION, 1/FS)`**: グラフのX軸（時間軸）を作成します。`0`秒から`DURATION`秒まで、`1/FS`秒（1サンプルあたりの時間）刻みの配列を生成します。
-2.  **`plt.plot(time, myrecording)`**: `matplotlib`を使い、X軸を`time`、Y軸を音声データの振幅`myrecording`として線グラフをプロットします。
-3.  **`plt.show()`**: プロットしたグラフを画面に表示します。
+1.  **`np.arange(...) / FS`**: グラフのX軸（時間軸）を作成します。
+2.  **`plt.plot(...)`**: `matplotlib`を使い、X軸を時間、Y軸を音声データの振幅として線グラフをプロットします。
+3.  **`plt.savefig(...)`**: プロットしたグラフを、ウィンドウで表示する代わりに画像ファイルとして保存します。
 
 ---
 
@@ -133,7 +191,7 @@ import numpy as np
 import argparse
 import soundfile as sf
 
-# (argparseによる引数処理部分は practice_1 と同様)
+# (argparse部分は practice_1 と同様)
 # ...
 
 # 1. 音量UP
@@ -145,112 +203,161 @@ print("逆再生")
 sd.play(myrecording[::-1], FS); sd.wait()
 
 # 3. 結合
-print("1秒の無音を挟んで2回再生")
-one_sec_silence = np.zeros((FS * 1, myrecording.ndim), dtype=myrecording.dtype)
-combined_audio = np.concatenate([myrecording, one_sec_silence, myrecording])
-sd.play(combined_audio, FS); sd.wait()
+# ... (チャンネル数を合わせて無音配列を作成)
 
 # 4. やまびこ
-print("やまびこ")
-delay_sec = 0.3
-delay_samples = int(delay_sec * FS)
-echo_audio = np.copy(myrecording)
-if myrecording.ndim == 1:
-    echo_audio[delay_samples:] += myrecording[:-delay_samples] * 0.5
-else:
-    echo_audio[delay_samples:, :] += myrecording[:-delay_samples, :] * 0.5
-sd.play(echo_audio, FS); sd.wait()
+# ... (配列をずらして足し合わせる)
 ```
 
 ### 解説
-- **音量UP**: Numpy配列全体を `* 2` で2倍します。これにより、すべてのサンプルの振幅が2倍になります。
+- **音量UP**: Numpy配列全体を `* 2` で2倍します。
 - **逆再生**: `[::-1]` は、Numpy配列の要素を逆順にするスライス表記です。
-- **結合**: `np.zeros()` で無音のNumpy配列を生成し、`np.concatenate()` で複数の配列を連結します。
-- **やまびこ**: 配列をコピーし、一定時間（`delay_samples`）ずらした元の音声を、音量を半分（`* 0.5`）にして足し合わせています。
+- **結合**: `np.zeros()` で無音の配列を生成し、`np.concatenate()` で連結します。
+- **やまびこ**: 配列をコピーし、一定時間ずらした音声を、音量を半分にして足し合わせています。
 
 ---
 
 ## `practice_4_wav.py`
 
 ### 役割
-録音した音声データをWAVファイルとしてディスクに保存します。
+録音した音声データを、互換性の高い16bit整数形式のWAVファイルとして保存します。
 
 ### コード全文
 ```python
 # practice_4_wav.py
 import sounddevice as sd
 import numpy as np
-from scipy.io.wavfile import write, read
+from scipy.io.wavfile import write
 import argparse
 
-# (argparseで出力ファイル名を指定する部分)
+# (argparseで出力ファイル名を指定)
 # ...
 
-# 録音してWAVファイルに保存
-print(f"録音開始... ({FILENAME}に保存)")
+# 録音
 recording = sd.rec(int(DURATION * FS), samplerate=FS, channels=1)
 sd.wait()
-write(FILENAME, FS, recording)
+
+# float32からint16へ変換し、互換性の高い形式で保存
+recording_int16 = np.int16(recording * 32767)
+write(FILENAME, FS, recording_int16)
 print("保存完了。")
 ```
 
 ### 解説
-- **`from scipy.io.wavfile import write`**: WAVファイルの書き込み機能 `write` をインポートします。
-- **`write(FILENAME, FS, recording)`**:
-    - `FILENAME`: 出力するファイル名
-    - `FS`: サンプリング周波数
-    - `recording`: 保存するNumpy配列の音声データ
-    - この関数が、PCMデータ（Numpy配列）に適切なヘッダ情報を付与してWAVファイルを作成します。
+- **`np.int16(recording * 32767)`**: `sounddevice`が返す-1.0〜1.0のfloat型配列を、16bit整数の範囲 (-32768〜32767) の値に変換します。
+- **`write(FILENAME, FS, recording_int16)`**: 変換後の整数配列をWAVファイルとして書き出します。
 
 ---
 
-## `practice_6_stt.py`
+## `practice_5_tts.py`
 
 ### 役割
-オフライン音声認識ライブラリ `Vosk` を使い、音声データを日本語テキストに変換します。
+`open_jtalk`というコマンドラインツールを直接呼び出して、安定したテキスト読み上げを実現します。
 
 ### コード全文
 ```python
-# practice_6_stt.py
+# practice_5_tts.py
 import sounddevice as sd
-import numpy as np
-from vosk import Model, KaldiRecognizer
-import json
-import os
-import argparse
-import soundfile as sf
+import os, glob, subprocess, soundfile as sf
 
-# (argparseによる引数処理部分は同様)
+# (各種パス設定、ボイス選択UI部分は省略)
 # ...
 
-# Voskモデルの読み込み
-model = Model(MODEL_DIR)
-recognizer = KaldiRecognizer(model, FS)
+# open_jtalkコマンドを構築
+command = ["open_jtalk"]
+command += ["-x", JNICT_DIC_PATH]
+if selected_voice_path:
+    command += ["-m", selected_voice_path]
+command += ["-ow", OUTPUT_WAV_PATH]
 
-# データ形式を変換して認識
-data = (myrecording * 32767).astype(np.int16).tobytes()
-recognizer.AcceptWaveform(data)
-
-# 認識結果をJSON形式で取得
-result = json.loads(recognizer.FinalResult())
-print("--- 認識結果 ---")
-print(result['text'])
+# コマンドを実行
+try:
+    subprocess.run(command, input=text, encoding='utf-8', check=True, stderr=subprocess.PIPE)
+    audio_data, FS = sf.read(OUTPUT_WAV_PATH)
+    sd.play(audio_data, FS)
+    sd.wait()
+except Exception as e:
+    # ... (エラー処理)
 ```
 
 ### 解説
-1.  **`Model(MODEL_DIR)`**: 事前にダウンロードしたVoskの言語モデルを読み込みます。
-2.  **`KaldiRecognizer(model, FS)`**: 読み込んだモデルとサンプリング周波数を指定して、認識器（Recognizer）を作成します。
-3.  **`astype(np.int16).tobytes()`**: `sounddevice` が返す `float32` 型のNumpy配列を、Voskが要求する `16bit整数` のバイト列に変換します。
-4.  **`recognizer.AcceptWaveform(data)`**: バイト列に変換した音声データを認識器に渡します。
-5.  **`recognizer.FinalResult()`**: 認識処理を実行し、結果をJSON形式の文字列で返します。
-6.  **`json.loads(...)`**: JSON文字列をPythonの辞書オブジェクトに変換し、`'text'`キーで認識結果の文字列を取り出します。
+1.  **`command = [...]`**: `open_jtalk` コマンドに渡す引数をリスト形式で組み立てます。
+2.  **`subprocess.run(...)`**: 組み立てたコマンドを実行します。`input=text`で読み上げるテキストを渡します。
+3.  **`sf.read(...)`**: `open_jtalk`が生成したWAVファイルを`soundfile`で読み込み、再生します。
+
+---
+
+## `practice_7_converter.py`
+
+### 役割
+`ffmpeg`コマンドを呼び出し、WAVファイルをMP3ファイルに変換します。
+
+### コード全文
+```python
+# practice_7_converter.py
+import subprocess, os
+
+INPUT_WAV = "my_voice.wav"
+OUTPUT_MP3 = "converted_audio.mp3"
+
+if not os.path.exists(INPUT_WAV):
+    exit(f"エラー: {INPUT_WAV} が見つかりません。 practice_4_wav.py で作成してください。")
+
+command = ["ffmpeg", "-i", INPUT_WAV, "-y", "-b:a", "192k", OUTPUT_MP3]
+
+try:
+    subprocess.run(command, check=True, capture_output=True, text=True)
+    print("変換成功！")
+except FileNotFoundError:
+    print("エラー: ffmpegが見つかりません。PATHを確認してください。")
+except subprocess.CalledProcessError as e:
+    print(f"ffmpegエラー: {e.stderr}")
+```
+
+### 解説
+- **`command = [...]`**: `ffmpeg`コマンドと、そのオプション（`-i`=入力, `-y`=上書き許可, `-b:a`=ビットレート）をリストで定義します。
+- **`subprocess.run(...)`**: `ffmpeg`を実行します。`check=True`で、コマンドが失敗した場合にエラーを発生させます。
+
+---
+
+## `practice_8_gtts.py`
+
+### 役割
+Googleのオンラインサービスを使い、高品質な自然音声を生成します。
+
+### コード全文
+```python
+# practice_8_gtts.py
+from gtts import gTTS
+import pygame.mixer as m
+
+mytext = "こんにちは。こちらは、グーグルのオンライン音声合成サービスです。"
+FILENAME = "gtts_hello.mp3"
+
+try:
+    tts = gTTS(text=mytext, lang='ja')
+    tts.save(FILENAME)
+except Exception as e:
+    exit(f"エラー: 音声の生成に失敗しました。インターネット接続を確認してください。 {e}")
+
+m.init()
+m.music.load(FILENAME)
+m.music.play()
+while m.music.get_busy():
+    continue
+```
+
+### 解説
+1.  **`gTTS(text=mytext, lang='ja')`**: 読み上げるテキストと言語（`ja`=日本語）を指定して、`gTTS`オブジェクトを作成します。
+2.  **`tts.save(FILENAME)`**: Googleのサーバーと通信し、生成された音声データをMP3ファイルとして保存します。
+3.  **`pygame.mixer`**: 保存されたMP3ファイルを`pygame`で再生します。
 
 ---
 
 ## `practice_9_pyworld_voicemod.py`
 
 ### 役割
-音声分析合成ライブラリ `PyWorld` を使い、声の高さ（ピッチ）を変更するボイスチェンジャーを実現します。
+`PyWorld`ライブラリを使い、声の高さ（ピッチ）を変更するボイスチェンジャーを実現します。
 
 ### コード全文
 ```python
@@ -259,27 +366,29 @@ import soundfile as sf
 import pyworld as pw
 import numpy as np
 import sounddevice as sd
-# ... (argparse部分は省略)
+import argparse
 
-# --- PyWorldによる分析 ---
-# F0(基本周波数), sp(スペクトル包絡), ap(非周期性指標)に分解
+# (argparse部分は省略)
+# ...
+
+x, fs = sf.read(INPUT_FILE)
+x = x.astype(np.float64)
+
 f0, t = pw.dio(x, fs)
 sp = pw.cheaptrick(x, f0, t, fs)
 ap = pw.d4c(x, f0, t, fs)
 
-# --- パラメータの加工 ---
-# 声の高さを変更
 modified_f0 = f0 * f0_rate
 
-# --- PyWorldによる再合成 ---
 synthesized = pw.synthesize(modified_f0, sp, ap, fs)
 
-# --- 再生と保存 ---
-# ...
+sd.play(synthesized.astype(np.float32), fs)
+sd.wait()
+
+sf.write(OUTPUT_FILE, synthesized, fs)
 ```
 
 ### 解説
-1.  **`pw.dio`, `pw.cheaptrick`, `pw.d4c`**: PyWorldの分析関数群です。音声`x`を、声の高さの元となる`f0`（基本周波数）、声色を決める`sp`（スペクトル包絡）、息遣いなどの成分である`ap`（非周期性指標）の3つのパラメータに分解します。
-2.  **`modified_f0 = f0 * f0_rate`**: F0（基本周波数）の配列全体を一定倍率で変更します。1.0より大きいと声が高く、小さいと低くなります。
-3.  **`pw.synthesize(...)`**: 加工したパラメータ（`modified_f0`など）を元に、音声を再合成します。
-
+1.  **`pw.dio`, `pw.cheaptrick`, `pw.d4c`**: 音声`x`を、声の高さの元となる`f0`（基本周波数）、声色を決める`sp`（スペクトル包絡）、息遣いなどの成分である`ap`（非周期性指標）の3つのパラメータに分解します。
+2.  **`modified_f0 = f0 * f0_rate`**: F0（基本周波数）の配列全体を一定倍率で変更します。
+3.  **`pw.synthesize(...)`**: 加工したパラメータを元に、音声を再合成します。

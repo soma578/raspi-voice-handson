@@ -105,14 +105,14 @@ python practice_1_record_playback.py -f stage_clear.wav
 ```
 
 ### **practice_2_visualize.py / practice_2b_spectrogram.py**: 音声の可視化
-`matplotlib`を使い、音声波形やスペクトログラム（声紋）を画像として表示します。これにより、音声がどのような特徴を持っているかを視覚的に確認できます。
+`matplotlib`を使い、音声波形やスペクトログラム（声紋）を**画像ファイルとして保存します**。これにより、音声がどのような特徴を持っているかを視覚的に確認できます。
 
 **実行方法:**
 ```bash
-# 録音した音声の「波形」を表示
+# 録音した音声の波形を waveform.png に保存
 python practice_2_visualize.py
 
-# WAVファイルの「スペクトログラム」を表示
+# WAVファイルのスペクトログラムを spectrogram.png に保存
 python practice_2b_spectrogram.py -f my_voice.wav
 ```
 
@@ -140,16 +140,25 @@ python practice_4_wav.py
 python practice_4_wav.py -o a.wav
 ```
 
-### **practice_5_tts.py**: テキスト読み上げ (Open JTalk)
-`pyopenjtalk`は、日本語のテキストを音声に変換するオフラインの音声合成ライブラリです。PC上で完結するため高速に動作し、複数の話者（ボイスフォント）を切り替えることができます。
+### **practice_5_tts.py / practice_8_gtts.py**: テキスト読み上げ (TTS)
+TTS (Text-to-Speech) は、その名の通りコンピュータがテキストを読み上げる技術です。このプロジェクトでは、2つの異なるアプローチを試します。
+
+- **`practice_5_tts.py` (オフライン)**: `open_jtalk`という、PC上で完結する音声合成エンジンを利用します。インターネット接続が不要で高速に動作するのが利点ですが、オンラインサービスに比べると品質はやや機械的です。
+- **`practice_8_gtts.py` (オンライン)**: `gTTS`ライブラリを使い、Googleの高度な音声合成サービスに接続します。品質は非常に自然ですが、インターネット接続が必要です。
 
 **実行方法:**
 ```bash
+# オフライン版 (Open JTalk)
 python practice_5_tts.py
+
+# オンライン版 (Google)
+python practice_8_gtts.py
 ```
 
-### **practice_6_stt.py**: 音声認識 (Vosk)
-`vosk`は、オフラインで動作する音声認識ライブラリです。ダウンロードした言語モデルを使い、マイク入力や音声ファイルから日本語のテキストを生成します。
+### **practice_6_stt.py**: 音声認識 (STT)
+STT (Speech-to-Text) は、人間の話し声をテキストに変換する技術で、音声アシスタントや議事録作成などに応用されます。このスクリプトでは、オフラインで動作する`Vosk`という優れた音声認識エンジンを利用します。
+
+事前にダウンロードした日本語の「音響モデル」と「言語モデル」を使い、PC上で音声分析からテキスト化までを完結させるため、インターネット接続は不要です。
 
 **実行方法:**
 ```bash
