@@ -10,14 +10,14 @@
 
 ### 手順1: リポジトリのクローン
 ```bash
-git clone https://github.com/your-username/your-repository-name.git # あなたのリポジトリURLに書き換えてください
-cd your-repository-name
+git clone https://github.com/soma578/raspi-voice-handson 
+cd raspi-voice-handson
 ```
 
 ### 手順2: 必要なツールのインストール (Ubuntuの場合)
 ```bash
 sudo apt update
-sudo apt install -y build-essential cmake python3-pip python3-venv libportaudio2 portaudio19-dev open-jtalk open-jtalk-mecab-naist-jdic ffmpeg wget unzip
+sudo apt install -y build-essential cmake python3-pip python3-venv libportaudio2 portaudio19-dev open-jtalk open-jtalk-mecab-naist-jdic ffmpeg wget unzip pulseaudio
 ```
 
 ### 手順3: Python環境のセットアップ
@@ -40,9 +40,6 @@ rm vosk-model-ja-0.22.zip
 もし「音声デバイスが見つからない」といったエラーが出る場合、サウンドサーバー`PulseAudio`が正しく動作していない可能性があります。以下のコマンドでインストールと確認を試してください。
 
 ```bash
-# PulseAudioをインストール
-sudo apt install pulseaudio
-
 # PulseAudioを手動で起動
 pulseaudio --start
 
